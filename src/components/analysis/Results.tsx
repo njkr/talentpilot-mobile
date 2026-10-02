@@ -10,7 +10,7 @@ import { ActionButton, CardSkeletons, CheckBox, Chip, Collapsible, ErrorState, P
 import { ImportanceBadge } from "@/routes/_app.jobs.$id";
 import { Badge, Card, EmptyState, Input } from "@/components/ui/tp";
 import { cn } from "@/lib/utils";
-import type { RescoreResponse, RescoreStatus } from "@/types/api";
+import type { RescoreResponse, RescoreStatus, ResumeVersion } from "@/types/api";
 import type {
   AtsReport, CompanyInsight, CoverLetter, CoverLetterLength, CoverLetterTone, InterviewQuestion, LearningRoadmap,
   SalaryEstimate, Suggestion,
@@ -22,20 +22,37 @@ const TAB_LABEL: Record<Tab, string> = {
   report: "Report", suggestions: "Suggestions", "cover-letter": "Cover Letter", interview: "Interview", company: "Company", salary: "Salary", learning: "Learning",
 };
 
-export function Results({ wsId, tab, setTab }: { wsId: string; tab: Tab; setTab: (t: Tab) => void }) {
+export function Results({ wsId, resumeId, tab, setTab }: { wsId: string; resumeId: string; tab: Tab; setTab: (t: Tab) => void }) {
   const [opened, setOpened] = useState<Set<Tab>>(() => new Set([tab]));
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement>>>({});
   useEffect(() => setOpened((s) => (s.has(tab) ? s : new Set(s).add(tab))), [tab]);
+  useEffect(() => tabRefs.current[tab]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }), [tab]);
   return (
     <div className="space-y-3">
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="tablist">
-        {TABS.map((t) => (
-          <Chip key={t} active={tab === t} onClick={() => setTab(t)}>{TAB_LABEL[t]}</Chip>
-        ))}
+      <div className="relative -mx-4">
+        <div className="scrollbar-none flex gap-2 overflow-x-auto px-4 pb-1 pr-12" role="tablist">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              ref={(node) => { if (node) tabRefs.current[t] = node; }}
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary",
+                tab === t ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground",
+              )}
+            >
+              {TAB_LABEL[t]}
+            </button>
+          ))}
+        </div>
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background to-transparent" aria-hidden />
       </div>
       {TABS.map((t) =>
         opened.has(t) ? (
           <div key={t} hidden={t !== tab}>
-            {t === "report" && <ReportTab wsId={wsId} />}
+            {t === "report" && <ReportTab wsId={wsId} resumeId={resumeId} />}
             {t === "suggestions" && <SuggestionsTab wsId={wsId} goReport={() => setTab("report")} />}
             {t === "cover-letter" && <CoverTab wsId={wsId} />}
             {t === "interview" && <InterviewTab wsId={wsId} />}
@@ -61,7 +78,7 @@ function Gate<T>({ q, children, notReady }: { q: { isPending: boolean; isError: 
 }
 
 // ── Report ────────────────────────────────────────────────────────────
-function ReportTab({ wsId }: { wsId: string }) {
+function ReportTab({ wsId, resumeId }: { wsId: string; resumeId: string }) {
   const qc = useQueryClient();
   const [rescoreId, setRescoreId] = useState<string | null>(null);
   const waitFrom = rescoreId;
@@ -69,6 +86,7 @@ function ReportTab({ wsId }: { wsId: string }) {
     queryKey: qk.ws(wsId, "report"),
     queryFn: () => api.get<AtsReport>(`/workspaces/${wsId}/report`),
   });
+  const versions = useQuery({ queryKey: qk.versions(resumeId), queryFn: () => api.get<ResumeVersion[]>(`/resumes/${resumeId}/versions`) });
   const status = useQuery({
     queryKey: qk.ws(wsId, `rescore-${rescoreId}`),
     queryFn: () => api.get<RescoreStatus>(`/workspaces/${wsId}/rescore/${rescoreId}`),
@@ -109,6 +127,8 @@ function ReportTab({ wsId }: { wsId: string }) {
     <Gate q={q} notReady="No report yet">
       {(r) => {
         const delta = r.original ? Math.round(r.overallScore - r.original.overallScore) : 0;
+        const latestVersion = Math.max(r.resumeVersion, ...(versions.data ?? []).map((v) => v.version));
+        const canRescore = latestVersion > r.resumeVersion;
         return (
           <div className="space-y-3">
             <Card className="flex items-center gap-4">
@@ -122,10 +142,11 @@ function ReportTab({ wsId }: { wsId: string }) {
             {waitFrom ? (
               <Card className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Recalculating…</Card>
             ) : (
-              <ActionButton variant="secondary" size="full" loading={rescore.isPending} onClick={() => rescore.mutate()}>
+              <ActionButton variant={canRescore ? "primary" : "secondary"} size="full" disabled={!canRescore} loading={rescore.isPending} onClick={() => rescore.mutate()}>
                 <RefreshCw className="h-4 w-4" /> Recalculate — {RESCORE_COST} credits
               </ActionButton>
             )}
+            {!waitFrom && !canRescore && <p className="caption -mt-2 text-center">Apply suggestions first</p>}
             {r.summary && <Card><p className="body-text">{r.summary}</p></Card>}
             {r.scoreBreakdown.length > 0 && (
               <Card className="space-y-3">
@@ -360,7 +381,7 @@ function QuestionCard({ wsId, iq }: { wsId: string; iq: InterviewQuestion }) {
   });
   const dTone = iq.difficulty === "easy" ? "success" : iq.difficulty === "medium" ? "warning" : "danger";
   return (
-    <Collapsible title={<span className="block text-sm font-semibold leading-snug">{iq.question}<span className="mt-1 flex gap-1.5"><Badge>{iq.type.replace("_", " ")}</Badge><Badge tone={dTone}>{iq.difficulty}</Badge></span></span>}>
+    <Collapsible title={<span className="block text-sm font-semibold leading-snug">{iq.question}<span className="mt-1 flex gap-1.5"><Badge>{categoryLabel(iq.type)}</Badge><Badge tone={dTone}>{categoryLabel(iq.difficulty)}</Badge></span></span>}>
       <div className="space-y-3">
         {iq.whyAsked && <p className="caption"><b>What they're testing:</b> {iq.whyAsked}</p>}
         {iq.basedOn && <p className="caption italic">Based on your resume: "{iq.basedOn}"</p>}
@@ -392,7 +413,7 @@ function CompanyTab({ wsId }: { wsId: string }) {
           <ListCard title="Talking points & tips" items={c.talkingPoints} />
           {c.sources?.length > 0 && (
             <Card><h3 className="h3 mb-2">Sources</h3>
-              {c.sources.map((s) => <button key={s} onClick={() => void openExternal(s)} className="flex min-h-11 w-full items-center gap-2 break-all text-left text-sm text-primary"><ExternalLink className="h-4 w-4 shrink-0" />{s}</button>)}
+              {c.sources.map((s) => <button key={s} onClick={() => void openExternal(s)} className="flex min-h-11 w-full items-center gap-2 text-left text-sm font-medium text-primary"><span className="min-w-0 flex-1 truncate">{sourceDomain(s)}</span><ExternalLink className="h-4 w-4 shrink-0" /></button>)}
             </Card>
           )}
         </div>
@@ -444,7 +465,7 @@ function LearningTab({ wsId }: { wsId: string }) {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{it.title}</p>
                     <p className="caption">{it.gapReason}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5"><Badge tone={it.priority === "required" ? "danger" : "primary"}>{it.priority}</Badge><Badge>{it.resourceType}</Badge><Badge>~{it.estHours}h</Badge></div>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5"><Badge tone={it.priority === "required" ? "danger" : "primary"}>{categoryLabel(it.priority)}</Badge><Badge>{categoryLabel(it.resourceType)}</Badge><Badge>~{it.estHours}h</Badge></div>
                   </div>
                 </div>
                 {url && <button onClick={() => void openExternal(url)} className="flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"><ExternalLink className="h-4 w-4" /> Open resource</button>}
@@ -455,6 +476,19 @@ function LearningTab({ wsId }: { wsId: string }) {
       )}
     </Gate>
   );
+}
+
+function categoryLabel(value: string) {
+  if (value.toLowerCase() === "hr") return "HR";
+  return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function sourceDomain(source: string) {
+  try {
+    return new URL(source).hostname.replace(/^www\./, "");
+  } catch {
+    return source.replace(/^https?:\/\//, "").split("/")[0] ?? source;
+  }
 }
 
 export function useIsMounted() {
