@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { CountUp } from "@/components/motion";
 import { useQuery } from "@tanstack/react-query";
 import { Line, LineChart, ResponsiveContainer } from "recharts";
 import { AlertTriangle, ChevronRight, FileText, Sparkles, Upload, UserRound, Zap } from "lucide-react";
@@ -109,7 +110,7 @@ function HomePage() {
         <div className="grid grid-cols-2 gap-3">
           <Card>
             <p className="caption">Credits</p>
-            <p className="font-display text-2xl font-bold">{d.creditInsight.balance}</p>
+            <p className="font-display text-2xl font-bold"><CountUp value={d.creditInsight.balance} /></p>
             <p className="caption mt-1">~{d.creditInsight.runsRemaining} analyses left</p>
             {(d.creditInsight.spentLast30Days > 0 || d.creditInsight.grantedLast30Days > 0) ? (
               <p className="caption">

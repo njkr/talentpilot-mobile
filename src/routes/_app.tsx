@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Bell, BriefcaseBusiness, FileText, Home, LineChart, UserRound, Zap } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { Logo, Splash } from "@/components/ui/tp";
+import { motion } from "framer-motion";
+import { useRef } from "react";
+import { LaunchScreen, MotionLogo, useLaunchGate } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import type { CreditBalance, UnreadCount } from "@/types/api";
 import { NewAnalysisSheet, UpgradeSheet } from "@/components/GlobalSheets";
@@ -35,7 +37,8 @@ const fmtBalance = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(1).replac
 /** RequireAuth + app shell. */
 function AppLayout() {
   const { status } = useAuth();
-  if (status === "loading") return <Splash />;
+  const phase = useLaunchGate(status === "loading");
+  if (phase !== "done") return <LaunchScreen phase={phase} />;
   if (status === "guest") return <Navigate to="/login" replace />;
   return <Shell />;
 }
@@ -51,12 +54,18 @@ function Shell() {
   const count = unread.data?.count ?? 0;
   const title = TITLES[pathname];
   const showTopBar = TAB_ROOTS.has(pathname);
+  const tabRoot = showTopBar;
+  // Going "back" = moving to a shallower path than before.
+  const prev = useRef(pathname);
+  const depth = (p: string) => p.split("/").filter(Boolean).length;
+  const back = depth(pathname) < depth(prev.current);
+  if (prev.current !== pathname) prev.current = pathname;
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
       {showTopBar && <header className="pt-safe sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
         <div className="flex h-14 items-center justify-between px-4">
-          {title ? <h1 className="h2">{title}</h1> : <Logo size={28} />}
+          {title ? <h1 className="h2">{title}</h1> : <MotionLogo size={28} />}
           <div className="flex items-center gap-1">
             <Link
               to="/billing"
@@ -83,7 +92,14 @@ function Shell() {
       </header>}
 
       <main className="app-scroll-bottom flex-1 px-4 pt-4">
-        <Outlet />
+        <motion.div
+          key={pathname}
+          initial={tabRoot ? { opacity: 0 } : { opacity: 0, x: back ? -24 : 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: tabRoot ? 0.15 : 0.25, ease: [0.2, 0.8, 0.2, 1] }}
+        >
+          <Outlet />
+        </motion.div>
       </main>
       <UpgradeSheet />
       <NewAnalysisSheet />

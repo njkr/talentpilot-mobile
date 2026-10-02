@@ -7,6 +7,7 @@ import { friendlyError } from "@/lib/errors";
 import { useOnline } from "@/lib/stores";
 import { cn } from "@/lib/utils";
 import { BottomSheet, Button, Card, Skeleton } from "@/components/ui/tp";
+import { CountUp, FadeUp, Triangle, useFirstLoad } from "@/components/motion";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { qk } from "@/lib/queries";
@@ -124,7 +125,9 @@ export function PullToRefresh({ onRefresh, children }: { onRefresh: () => Promis
         style={{ height: busy ? 40 : pull }}
         aria-hidden={!busy}
       >
-        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" style={{ transform: `rotate(${pull * 3}deg)` }} />}
+        <span className="text-primary" style={busy ? undefined : { transform: `scale(${0.5 + 0.5 * Math.min(1, pull / TH)}) rotate(${(1 - Math.min(1, pull / TH)) * 180}deg)` }}>
+          <Triangle lift={busy} className="h-5 w-5" />
+        </span>
       </div>
       {children}
     </div>
@@ -162,6 +165,7 @@ export function InfiniteList<T>({
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const list = items ?? flat(q.data);
+  const first = useFirstLoad(!q.isPending && list.length > 0);
   return (
     <PullToRefresh onRefresh={() => q.refetch()}>
       {q.isPending ? (
@@ -172,7 +176,11 @@ export function InfiniteList<T>({
         empty
       ) : (
         <div className="space-y-3">
-          {list.map(render)}
+          {list.map((it, i) => (
+            <FadeUp key={i} index={i} animateIn={first && i < 8}>
+              {render(it, i)}
+            </FadeUp>
+          ))}
           <div ref={sentinel} />
           {isFetchingNextPage && <Loader2 className="mx-auto h-5 w-5 animate-spin text-subtle" />}
         </div>
@@ -330,13 +338,13 @@ export function ScoreRing({ score, size = 112 }: { score: number; size?: number 
           r={r}
           strokeWidth={10}
           strokeLinecap="round"
-          className={cn("fill-none transition-[stroke-dashoffset] duration-1000 ease-out", stroke)}
+          className={cn("fill-none transition-[stroke-dashoffset] duration-[600ms] ease-out", stroke)}
           strokeDasharray={c}
           strokeDashoffset={c - (c * v) / 100}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={cn("font-display text-3xl font-extrabold", scoreText(score))}>{Math.round(score)}</span>
+        <CountUp value={score} className={cn("font-display text-3xl font-extrabold", scoreText(score))} />
         <span className="caption">/ 100</span>
       </div>
     </div>

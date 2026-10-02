@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Circle, Loader2, MinusCircle, RotateCw, XCircle } from "lucide-react";
+import { Circle, Loader2, MinusCircle, RotateCw, XCircle } from "lucide-react";
 import { API_BASE_URL } from "@/config";
 import { api, NGROK_QUERY } from "@/lib/api";
 import { qk } from "@/lib/queries";
@@ -10,6 +10,7 @@ import { onAppResume } from "@/lib/native";
 import { ActionButton, ProgressBar } from "@/components/app";
 import { Card } from "@/components/ui/tp";
 import { cn } from "@/lib/utils";
+import { DrawCheck, FlightPath } from "@/components/motion";
 import type { Run, RunStatus, StepStatus, StreamTicket } from "@/types/api";
 
 export const STEPS: { name: string; label: string }[] = [
@@ -163,7 +164,7 @@ function fromRun(r: Run | undefined): LiveRun {
 }
 
 export function StepIcon({ s }: { s: StepState | undefined }) {
-  if (s === "completed") return <CheckCircle2 className="h-5 w-5 text-success" />;
+  if (s === "completed") return <DrawCheck className="h-5 w-5" />;
   if (s === "running") return <Loader2 className="h-5 w-5 animate-spin text-primary" />;
   if (s === "retrying") return <RotateCw className="h-5 w-5 animate-spin text-warning" />;
   if (s === "failed") return <XCircle className="h-5 w-5 text-destructive" />;
@@ -178,6 +179,7 @@ export function Timeline({ live }: { live: LiveRun }) {
         <span>Progress</span>
         <span>{Math.round(live.progress)}%</span>
       </div>
+      <FlightPath done={STEPS.filter((s) => live.steps[s.name] === "completed" || live.steps[s.name] === "skipped").length} total={STEPS.length} landed={live.status === "completed"} />
       <ProgressBar value={live.progress} />
       <ol className="space-y-1">
         {STEPS.map((s) => {
@@ -205,8 +207,10 @@ export function ProgressView({ workspaceId, runId, initial, onDone }: { workspac
     void qc.invalidateQueries({ queryKey: qk.workspaces });
     void qc.invalidateQueries({ queryKey: qk.credits });
     void qc.invalidateQueries({ queryKey: qk.dashboard });
-    if (r.status === "completed") toast.success("Analysis complete");
-    onDone();
+    if (r.status === "completed") {
+      toast.success("Analysis complete");
+      setTimeout(onDone, 400); // let the landing bounce play
+    } else onDone();
   });
   return (
     <div className="space-y-3">
