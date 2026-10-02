@@ -178,7 +178,7 @@ export function InfiniteList<T>({
         <div className="space-y-3">
           {list.map((it, i) => (
             <FadeUp key={i} index={i} animateIn={first && i < 8}>
-              {render(it, i)}
+              {render(it)}
             </FadeUp>
           ))}
           <div ref={sentinel} />
