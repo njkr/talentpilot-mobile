@@ -112,7 +112,7 @@ export function Badge({ tone, className, children }: VariantProps<typeof badgeVa
 
 // ── Skeleton ───────────────────────────────────────────────────────────
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-lg bg-border/70", className)} />;
+  return <div className={cn("tp-shimmer rounded-lg", className)} />;
 }
 
 // ── EmptyState ─────────────────────────────────────────────────────────

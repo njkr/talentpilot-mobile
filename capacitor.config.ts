@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: "dist/client",
   server: { androidScheme: "https" },
   plugins: {
-    SplashScreen: { launchShowDuration: 1500, backgroundColor: "#ffffff", showSpinner: false },
+    SplashScreen: { launchAutoHide: false, launchShowDuration: 1500, backgroundColor: "#ffffff", showSpinner: false },
     StatusBar: { style: "LIGHT", backgroundColor: "#ffffff", overlaysWebView: false },
     Keyboard: { resize: "body" },
   },

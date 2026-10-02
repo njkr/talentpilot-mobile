@@ -163,13 +163,14 @@ export function FlightPath({ done, total, landed }: { done: number; total: numbe
     <div className="relative h-8" aria-hidden>
       <div className="absolute inset-x-3 top-1/2 border-t-2 border-dashed border-border" />
       <div className="absolute inset-x-3 top-0 h-full">
-        <motion.div
-          className="absolute top-1/2 -ml-3 -mt-3 h-6 w-6 text-primary"
-          animate={{ left: `${pct * 100}%`, y: landed ? [0, -8, 0, -3, 0] : 0 }}
-          transition={{ left: { duration: 0.3, ease: EASE }, y: { duration: 0.4, ease: "easeOut" } }}
-          style={{ rotate: 90 }}
-        >
-          <Triangle lift={!landed} className="h-6 w-6" />
+        <motion.div className="absolute inset-0" animate={{ x: `${pct * 100}%` }} transition={{ duration: 0.3, ease: EASE }}>
+          <motion.div
+            className="absolute left-0 top-1/2 -ml-3 -mt-3 h-6 w-6 text-primary"
+            animate={{ y: landed ? [0, -8, 0, -3, 0] : 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
+            <Triangle lift={!landed} className="h-6 w-6 rotate-90" />
+          </motion.div>
         </motion.div>
       </div>
     </div>
