@@ -10,6 +10,7 @@ import { ActionButton, CardSkeletons, CheckBox, Chip, Collapsible, ErrorState, P
 import { ImportanceBadge } from "@/routes/_app.jobs.$id";
 import { Badge, Card, EmptyState, Input } from "@/components/ui/tp";
 import { cn } from "@/lib/utils";
+import type { RescoreResponse, RescoreStatus } from "@/types/api";
 import type {
   AtsReport, CompanyInsight, CoverLetter, CoverLetterLength, CoverLetterTone, InterviewQuestion, LearningRoadmap,
   SalaryEstimate, Suggestion,
@@ -62,27 +63,42 @@ function Gate<T>({ q, children, notReady }: { q: { isPending: boolean; isError: 
 // ── Report ────────────────────────────────────────────────────────────
 function ReportTab({ wsId }: { wsId: string }) {
   const qc = useQueryClient();
-  const [waitFrom, setWaitFrom] = useState<{ id: string; at: number } | null>(null);
+  const [rescoreId, setRescoreId] = useState<string | null>(null);
+  const waitFrom = rescoreId;
   const q = useQuery({
     queryKey: qk.ws(wsId, "report"),
     queryFn: () => api.get<AtsReport>(`/workspaces/${wsId}/report`),
-    refetchInterval: waitFrom ? 3000 : false,
+  });
+  const status = useQuery({
+    queryKey: qk.ws(wsId, `rescore-${rescoreId}`),
+    queryFn: () => api.get<RescoreStatus>(`/workspaces/${wsId}/rescore/${rescoreId}`),
+    enabled: !!rescoreId,
+    refetchInterval: 2500,
+    retry: false,
   });
   useEffect(() => {
-    if (!waitFrom || !q.data) return;
-    if (q.data.id !== waitFrom.id) {
-      setWaitFrom(null);
-      toast.success("Score updated");
-      void qc.invalidateQueries({ queryKey: qk.workspaces });
-    } else if (Date.now() - waitFrom.at > 120_000) {
-      setWaitFrom(null);
-      toast("Still recalculating — check back in a bit.");
+    if (!rescoreId) return;
+    if (status.isError) {
+      setRescoreId(null);
+      toast("Couldn't track the recalculation — pull to refresh in a bit.");
+      return;
     }
-  }, [q.data, waitFrom, qc]);
+    const s = status.data?.status;
+    if (s === "completed") {
+      setRescoreId(null);
+      toast.success("Score updated");
+      void qc.invalidateQueries({ queryKey: qk.ws(wsId, "report") });
+      void qc.invalidateQueries({ queryKey: qk.workspaces });
+      void qc.invalidateQueries({ queryKey: qk.dashboard });
+    } else if (s === "failed") {
+      setRescoreId(null);
+      toast.error(status.data?.error ?? "Recalculation failed");
+    }
+  }, [status.data, status.isError, rescoreId, wsId, qc]);
   const rescore = useMutation({
-    mutationFn: () => api.postIdempotent(`/workspaces/${wsId}/rescore`),
-    onSuccess: () => {
-      setWaitFrom({ id: q.data?.id ?? "", at: Date.now() });
+    mutationFn: () => api.postIdempotent<RescoreResponse>(`/workspaces/${wsId}/rescore`),
+    onSuccess: (r) => {
+      setRescoreId(r.rescoreId);
       void qc.invalidateQueries({ queryKey: qk.credits });
     },
     onError: (e) => toastError(e, { NO_CHANGES_TO_RESCORE: "Apply some suggestions first" }),
