@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- Native features go through src/lib/native.ts (lazy Capacitor imports with web fallbacks) so the browser preview keeps working.
+- App-wide sheets (upgrade, new analysis) and connectivity use tiny stores in src/lib/stores.ts; open BottomSheets register there so the Android back button closes them first.
+- Lists use useList (cursor infinite query) + InfiniteList from src/components/app.tsx; mutations route errors through toastError/handleUpgradeError.

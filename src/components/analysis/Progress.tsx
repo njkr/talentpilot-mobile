@@ -29,7 +29,7 @@ export const STEPS: { name: string; label: string }[] = [
 export const stepLabel = (n: string) => STEPS.find((s) => s.name === n)?.label ?? n.replace(/_/g, " ");
 
 type StepState = StepStatus | "retrying";
-export type LiveRun = { status: RunStatus; progress: number; steps: Record<string, StepState>; failedSteps?: string[]; refunded?: number };
+export type LiveRun = { status: RunStatus; progress: number; steps: Record<string, StepState>; failedSteps?: string[] | undefined; refunded?: number | undefined };
 
 const terminal = (s: RunStatus) => s === "completed" || s === "failed" || s === "partial" || s === "cancelled";
 

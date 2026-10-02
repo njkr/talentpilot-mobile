@@ -98,7 +98,7 @@ function ResumesPage() {
   const pick = (f: File | undefined) => {
     if (!f) return;
     const bad = precheckFile(f);
-    if (bad) return toast.error(bad);
+    if (bad) { toast.error(bad); return; }
     setProgress(0);
     upload.mutate(f);
   };
