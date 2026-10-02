@@ -2,6 +2,7 @@ import { forwardRef, useEffect, type HTMLAttributes, type ButtonHTMLAttributes, 
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { pushSheet } from "@/lib/stores";
 
 // ── Logo ───────────────────────────────────────────────────────────────
 export function Logo({ size = 32, wordmark = true }: { size?: number; wordmark?: boolean }) {
@@ -152,7 +153,11 @@ export function BottomSheet({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const pop = pushSheet(onClose);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      pop();
+    };
   }, [open, onClose]);
   if (!open) return null;
   return (
