@@ -17,3 +17,5 @@
 - Keep capacitor.config.ts webDir = "dist/client", the build:mobile script, and vite.config.mobile.ts — CI builds the APK from them.
 - Never hardcode absolute Lovable-domain URLs; keep the app a client-routed SPA reading the API URL from VITE_API_BASE_URL.
 - Never delete android/ or .github/workflows/android-apk.yml — they're the committed native project and APK workflow.
+- Never change webDir ("dist/client"), the build:mobile script, vite.config.mobile.ts, or the android/ folder — the user has confirmed these are fixed.
+- Dependencies must stay recorded in package.json and bun.lock — CI runs bun install --frozen-lockfile, so use bun add/remove rather than manual edits.
