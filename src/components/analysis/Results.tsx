@@ -25,8 +25,8 @@ const TAB_LABEL: Record<Tab, string> = {
 export function Results({ wsId, resumeId, tab, setTab }: { wsId: string; resumeId: string; tab: Tab; setTab: (t: Tab) => void }) {
   const [opened, setOpened] = useState<Set<Tab>>(() => new Set([tab]));
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement>>>({});
-  useEffect(() => setOpened((s) => (s.has(tab) ? s : new Set(s).add(tab))), [tab]);
-  useEffect(() => tabRefs.current[tab]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }), [tab]);
+  useEffect(() => { setOpened((s) => (s.has(tab) ? s : new Set(s).add(tab))); }, [tab]);
+  useEffect(() => { tabRefs.current[tab]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }); }, [tab]);
   return (
     <div className="space-y-3">
       <div className="relative -mx-4">
