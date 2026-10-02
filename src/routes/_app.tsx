@@ -61,7 +61,7 @@ function Shell() {
               aria-label="Credits"
             >
               <Zap className="h-4 w-4 fill-current" />
-              {credits.data ? credits.data.balance.toLocaleString() : "—"}
+              {credits.data ? fmtBalance(credits.data.balance) : "—"}
             </Link>
             <Link
               to="/notifications"
