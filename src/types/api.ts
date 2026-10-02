@@ -75,7 +75,7 @@ export interface LoginRequest { email: string; /** non-empty, no length rule */ 
 export interface VerifyOtpRequest { email: string; /** exactly 6 digits */ code: string }
 export interface EmailRequest { email: string }
 export interface ResetPasswordRequest { /** opaque token from email link */ token: string; /** 8..72 (server does NOT enforce letter/digit here) */ password: string }
-export interface SessionInfo { familyId: string; createdAt: string; ip: string | null; userAgent: string | null }
+export interface SessionInfo { familyId: string; createdAt: string; ip: string | null; userAgent: string | null; isCurrent: boolean }
 
 // ───────────────────────── Profile
 
@@ -239,7 +239,8 @@ export interface AtsReport {
   keywords: KeywordMatchRow[]; createdAt: string; matchBand: MatchBandResult | null;
   /** earlier report for before/after; its `keywords` is always [] and `original` null */ original: AtsReport | null;
 }
-export interface RescoreResponse { queued: true }
+export interface RescoreResponse { queued: true; rescoreId: string; resumeVersion: number }
+export interface RescoreStatus { rescoreId: string; status: 'queued' | 'processing' | 'completed' | 'failed'; resumeVersion: number; reportId: string | null; completedAt: string | null; error: string | null }
 
 // ───────────────────────── Suggestions
 
@@ -317,7 +318,7 @@ export interface DashboardOverview {
   creditInsight: { balance: number; spentLast30Days: number; grantedLast30Days: number; monthlyAllowance: number; runsRemaining: number };
   topGaps: { keyword: string; missCount: number }[];
   /** last 14 days, zero-filled */ activity: { date: string; runs: number }[];
-  actionItems: { kind: 'failed_run' | 'pending_suggestions' | 'low_credits' | 'incomplete_profile'; label: string; /** web route, e.g. "/workspaces?filter=failed" — map to mobile route */ href: string; priority: 'high' | 'medium' | 'low' }[];
+  actionItems: { kind: 'failed_run' | 'pending_suggestions' | 'low_credits' | 'incomplete_profile'; label: string; /** web route, e.g. "/workspaces?filter=failed" — map to mobile route */ href: string; workspaceId?: string; runId?: string; resumeId?: string; priority: 'high' | 'medium' | 'low' }[];
   attention: { failedRuns: number; workspacesWithPendingSuggestions: number };
 }
 

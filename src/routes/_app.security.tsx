@@ -37,8 +37,7 @@ function SecurityPage() {
   const qc = useQueryClient();
   const { signOut } = useAuth();
   const [target, setTarget] = useState<SessionInfo | null>(null);
-  // The API doesn't flag the current session; the newest one is ours right after sign-in.
-  const currentId = q.data?.[0]?.familyId;
+  const currentId = q.data?.find((s) => s.isCurrent)?.familyId;
 
   const revoke = useMutation({
     mutationFn: (s: SessionInfo) => api.delete(`/auth/sessions/${s.familyId}`),

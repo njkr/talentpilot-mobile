@@ -31,7 +31,7 @@ function HomePage() {
   const nav = useNavigate();
 
   const go = (it: Item) => {
-    const id = wsIdFrom(it.href);
+    const id = it.workspaceId ?? wsIdFrom(it.href);
     switch (it.kind) {
       case "failed_run":
         return id ? nav({ to: "/analyses/$id", params: { id } }) : nav({ to: "/analyses", search: { filter: "failed" } });
