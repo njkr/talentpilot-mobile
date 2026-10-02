@@ -27,6 +27,9 @@ const TITLES: Record<string, string> = {
   "/me": "Me",
 };
 
+/** Compacts large balances for the top bar pill, e.g. 12.3k. */
+const fmtBalance = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : n.toLocaleString());
+
 /** RequireAuth + app shell. */
 function AppLayout() {
   const { status } = useAuth();
@@ -58,7 +61,7 @@ function Shell() {
               aria-label="Credits"
             >
               <Zap className="h-4 w-4 fill-current" />
-              {credits.data ? credits.data.balance.toLocaleString() : "—"}
+              {credits.data ? fmtBalance(credits.data.balance) : "—"}
             </Link>
             <Link
               to="/notifications"

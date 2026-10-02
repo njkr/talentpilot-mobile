@@ -111,7 +111,11 @@ function HomePage() {
             <p className="caption">Credits</p>
             <p className="font-display text-2xl font-bold">{d.creditInsight.balance}</p>
             <p className="caption mt-1">~{d.creditInsight.runsRemaining} analyses left</p>
-            <p className="caption">−{d.creditInsight.spentLast30Days} / +{d.creditInsight.grantedLast30Days} (30d)</p>
+            {(d.creditInsight.spentLast30Days > 0 || d.creditInsight.grantedLast30Days > 0) ? (
+              <p className="caption">−{d.creditInsight.spentLast30Days} / +{d.creditInsight.grantedLast30Days} (30d)</p>
+            ) : (
+              <p className="caption">No credit activity in the last 30 days</p>
+            )}
           </Card>
           <Card>
             <p className="caption">Score trend</p>
@@ -119,15 +123,18 @@ function HomePage() {
               {d.scoreInsight.latestScore ?? "—"}
             </p>
             {d.scoreInsight.trend.length > 1 ? (
-              <div className="h-12">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={d.scoreInsight.trend}>
-                    <Line type="monotone" dataKey="score" stroke="var(--primary)" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <>
+                <div className="h-12">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={d.scoreInsight.trend}>
+                      <Line type="monotone" dataKey="score" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="caption mt-1">Best {d.scoreInsight.bestScore ?? "—"} · Avg {d.scoreInsight.averageScore != null ? Math.round(d.scoreInsight.averageScore) : "—"}</p>
+              </>
             ) : (
-              <p className="caption mt-1">Best {d.scoreInsight.bestScore ?? "—"} · Avg {d.scoreInsight.averageScore != null ? Math.round(d.scoreInsight.averageScore) : "—"}</p>
+              <p className="caption mt-1">Run more analyses to see your trend</p>
             )}
           </Card>
           {d.activity.some((a) => a.runs > 0) && (
@@ -143,7 +150,7 @@ function HomePage() {
               </div>
             </Card>
           )}
-          <Card>
+          <Card className={d.activity.some((a) => a.runs > 0) ? undefined : "col-span-2"}>
             <p className="caption">Totals</p>
             <div className="mt-1 space-y-0.5 text-sm">
               <p>
