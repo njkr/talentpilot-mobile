@@ -68,7 +68,7 @@ function NewJob() {
   const fromClipboard = async () => {
     try {
       const t = await readClipboard();
-      if (!t) return toast("Clipboard is empty");
+      if (!t) { toast("Clipboard is empty"); return; }
       setText(t.slice(0, MAX));
     } catch {
       toast.error("Couldn't read the clipboard. Long-press the box and paste instead.");

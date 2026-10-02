@@ -99,7 +99,7 @@ function ProfilePage() {
             mapped = true;
           }
         }
-        if (mapped) return toast.error("Please fix the highlighted fields");
+        if (mapped) { toast.error("Please fix the highlighted fields"); return; }
       }
       toastError(e);
     },
