@@ -24,6 +24,7 @@ import { Route as AuthRegisterRouteImport } from './routes/_auth.register'
 import { Route as AuthResetPasswordRouteImport } from './routes/_auth.reset-password'
 import { Route as AuthVerifyOtpRouteImport } from './routes/_auth.verify-otp'
 import { Route as AppAnalysesIndexRouteImport } from './routes/_app.analyses.index'
+import { Route as AppAnalysesIdRouteImport } from './routes/_app.analyses.$id'
 import { Route as AppJobsIndexRouteImport } from './routes/_app.jobs.index'
 import { Route as AppJobsIdRouteImport } from './routes/_app.jobs.$id'
 import { Route as AppJobsNewRouteImport } from './routes/_app.jobs.new'
@@ -103,6 +104,11 @@ const AppAnalysesIndexRoute = AppAnalysesIndexRouteImport.update({
   path: '/analyses/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAnalysesIdRoute = AppAnalysesIdRouteImport.update({
+  id: '/analyses/$id',
+  path: '/analyses/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppJobsIndexRoute = AppJobsIndexRouteImport.update({
   id: '/jobs/',
   path: '/jobs/',
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof AuthRegisterRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/verify-otp': typeof AuthVerifyOtpRoute
+  '/analyses/$id': typeof AppAnalysesIdRoute
   '/jobs/$id': typeof AppJobsIdRoute
   '/jobs/new': typeof AppJobsNewRoute
   '/resumes/$id': typeof AppResumesIdRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/register': typeof AuthRegisterRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/verify-otp': typeof AuthVerifyOtpRoute
+  '/analyses/$id': typeof AppAnalysesIdRoute
   '/jobs/$id': typeof AppJobsIdRoute
   '/jobs/new': typeof AppJobsNewRoute
   '/resumes/$id': typeof AppResumesIdRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_auth/verify-otp': typeof AuthVerifyOtpRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/analyses/$id': typeof AppAnalysesIdRoute
   '/_app/jobs/$id': typeof AppJobsIdRoute
   '/_app/jobs/new': typeof AppJobsNewRoute
   '/_app/resumes/$id': typeof AppResumesIdRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/verify-otp'
+    | '/analyses/$id'
     | '/jobs/$id'
     | '/jobs/new'
     | '/resumes/$id'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/verify-otp'
+    | '/analyses/$id'
     | '/jobs/$id'
     | '/jobs/new'
     | '/resumes/$id'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/_auth/reset-password'
     | '/_auth/verify-otp'
     | '/_app/'
+    | '/_app/analyses/$id'
     | '/_app/jobs/$id'
     | '/_app/jobs/new'
     | '/_app/resumes/$id'
@@ -369,6 +381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalysesIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/analyses/$id': {
+      id: '/_app/analyses/$id'
+      path: '/analyses/$id'
+      fullPath: '/analyses/$id'
+      preLoaderRoute: typeof AppAnalysesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/jobs/': {
       id: '/_app/jobs/'
       path: '/jobs'
@@ -415,6 +434,7 @@ interface AppRouteChildren {
   AppProfileRoute: typeof AppProfileRoute
   AppSecurityRoute: typeof AppSecurityRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAnalysesIdRoute: typeof AppAnalysesIdRoute
   AppJobsIdRoute: typeof AppJobsIdRoute
   AppJobsNewRoute: typeof AppJobsNewRoute
   AppResumesIdRoute: typeof AppResumesIdRoute
@@ -431,6 +451,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppProfileRoute: AppProfileRoute,
   AppSecurityRoute: AppSecurityRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAnalysesIdRoute: AppAnalysesIdRoute,
   AppJobsIdRoute: AppJobsIdRoute,
   AppJobsNewRoute: AppJobsNewRoute,
   AppResumesIdRoute: AppResumesIdRoute,
