@@ -23,6 +23,7 @@ import { Route as AuthLoginRouteImport } from './routes/_auth.login'
 import { Route as AuthRegisterRouteImport } from './routes/_auth.register'
 import { Route as AuthResetPasswordRouteImport } from './routes/_auth.reset-password'
 import { Route as AuthVerifyOtpRouteImport } from './routes/_auth.verify-otp'
+import { Route as AppAnalysesIndexRouteImport } from './routes/_app.analyses.index'
 import { Route as AppJobsIndexRouteImport } from './routes/_app.jobs.index'
 import { Route as AppJobsIdRouteImport } from './routes/_app.jobs.$id'
 import { Route as AppJobsNewRouteImport } from './routes/_app.jobs.new'
@@ -97,6 +98,11 @@ const AuthVerifyOtpRoute = AuthVerifyOtpRouteImport.update({
   path: '/verify-otp',
   getParentRoute: () => AuthRoute,
 } as any)
+const AppAnalysesIndexRoute = AppAnalysesIndexRouteImport.update({
+  id: '/analyses/',
+  path: '/analyses/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppJobsIndexRoute = AppJobsIndexRouteImport.update({
   id: '/jobs/',
   path: '/jobs/',
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/jobs/$id': typeof AppJobsIdRoute
   '/jobs/new': typeof AppJobsNewRoute
   '/resumes/$id': typeof AppResumesIdRoute
+  '/analyses/': typeof AppAnalysesIndexRoute
   '/jobs/': typeof AppJobsIndexRoute
   '/resumes/': typeof AppResumesIndexRoute
 }
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/jobs/$id': typeof AppJobsIdRoute
   '/jobs/new': typeof AppJobsNewRoute
   '/resumes/$id': typeof AppResumesIdRoute
+  '/analyses': typeof AppAnalysesIndexRoute
   '/jobs': typeof AppJobsIndexRoute
   '/resumes': typeof AppResumesIndexRoute
 }
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/_app/jobs/$id': typeof AppJobsIdRoute
   '/_app/jobs/new': typeof AppJobsNewRoute
   '/_app/resumes/$id': typeof AppResumesIdRoute
+  '/_app/analyses/': typeof AppAnalysesIndexRoute
   '/_app/jobs/': typeof AppJobsIndexRoute
   '/_app/resumes/': typeof AppResumesIndexRoute
 }
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/jobs/$id'
     | '/jobs/new'
     | '/resumes/$id'
+    | '/analyses/'
     | '/jobs/'
     | '/resumes/'
   fileRoutesByTo: FileRoutesByTo
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | '/jobs/$id'
     | '/jobs/new'
     | '/resumes/$id'
+    | '/analyses'
     | '/jobs'
     | '/resumes'
   id:
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/_app/jobs/$id'
     | '/_app/jobs/new'
     | '/_app/resumes/$id'
+    | '/_app/analyses/'
     | '/_app/jobs/'
     | '/_app/resumes/'
   fileRoutesById: FileRoutesById
@@ -350,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthVerifyOtpRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_app/analyses/': {
+      id: '/_app/analyses/'
+      path: '/analyses'
+      fullPath: '/analyses/'
+      preLoaderRoute: typeof AppAnalysesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/jobs/': {
       id: '/_app/jobs/'
       path: '/jobs'
@@ -399,6 +418,7 @@ interface AppRouteChildren {
   AppJobsIdRoute: typeof AppJobsIdRoute
   AppJobsNewRoute: typeof AppJobsNewRoute
   AppResumesIdRoute: typeof AppResumesIdRoute
+  AppAnalysesIndexRoute: typeof AppAnalysesIndexRoute
   AppJobsIndexRoute: typeof AppJobsIndexRoute
   AppResumesIndexRoute: typeof AppResumesIndexRoute
 }
@@ -414,6 +434,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJobsIdRoute: AppJobsIdRoute,
   AppJobsNewRoute: AppJobsNewRoute,
   AppResumesIdRoute: AppResumesIdRoute,
+  AppAnalysesIndexRoute: AppAnalysesIndexRoute,
   AppJobsIndexRoute: AppJobsIndexRoute,
   AppResumesIndexRoute: AppResumesIndexRoute,
 }
