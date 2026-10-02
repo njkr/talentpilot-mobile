@@ -13,13 +13,10 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppAccountRouteImport } from './routes/_app.account'
-import { Route as AppAnalysesRouteImport } from './routes/_app.analyses'
 import { Route as AppBillingRouteImport } from './routes/_app.billing'
-import { Route as AppJobsRouteImport } from './routes/_app.jobs'
 import { Route as AppMeRouteImport } from './routes/_app.me'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
-import { Route as AppResumesRouteImport } from './routes/_app.resumes'
 import { Route as AppSecurityRouteImport } from './routes/_app.security'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth.forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/_auth.login'
@@ -45,19 +42,9 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAnalysesRoute = AppAnalysesRouteImport.update({
-  id: '/analyses',
-  path: '/analyses',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppBillingRoute = AppBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppJobsRoute = AppJobsRouteImport.update({
-  id: '/jobs',
-  path: '/jobs',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMeRoute = AppMeRouteImport.update({
@@ -73,11 +60,6 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
 const AppProfileRoute = AppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppResumesRoute = AppResumesRouteImport.update({
-  id: '/resumes',
-  path: '/resumes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSecurityRoute = AppSecurityRouteImport.update({
@@ -114,13 +96,10 @@ const AuthVerifyOtpRoute = AuthVerifyOtpRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/account': typeof AppAccountRoute
-  '/analyses': typeof AppAnalysesRoute
   '/billing': typeof AppBillingRoute
-  '/jobs': typeof AppJobsRoute
   '/me': typeof AppMeRoute
   '/notifications': typeof AppNotificationsRoute
   '/profile': typeof AppProfileRoute
-  '/resumes': typeof AppResumesRoute
   '/security': typeof AppSecurityRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
@@ -131,13 +110,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/account': typeof AppAccountRoute
-  '/analyses': typeof AppAnalysesRoute
   '/billing': typeof AppBillingRoute
-  '/jobs': typeof AppJobsRoute
   '/me': typeof AppMeRoute
   '/notifications': typeof AppNotificationsRoute
   '/profile': typeof AppProfileRoute
-  '/resumes': typeof AppResumesRoute
   '/security': typeof AppSecurityRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
@@ -150,13 +126,10 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
   '/_app/account': typeof AppAccountRoute
-  '/_app/analyses': typeof AppAnalysesRoute
   '/_app/billing': typeof AppBillingRoute
-  '/_app/jobs': typeof AppJobsRoute
   '/_app/me': typeof AppMeRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/profile': typeof AppProfileRoute
-  '/_app/resumes': typeof AppResumesRoute
   '/_app/security': typeof AppSecurityRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/login': typeof AuthLoginRoute
@@ -170,13 +143,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/account'
-    | '/analyses'
     | '/billing'
-    | '/jobs'
     | '/me'
     | '/notifications'
     | '/profile'
-    | '/resumes'
     | '/security'
     | '/forgot-password'
     | '/login'
@@ -187,13 +157,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/account'
-    | '/analyses'
     | '/billing'
-    | '/jobs'
     | '/me'
     | '/notifications'
     | '/profile'
-    | '/resumes'
     | '/security'
     | '/forgot-password'
     | '/login'
@@ -205,13 +172,10 @@ export interface FileRouteTypes {
     | '/_app'
     | '/_auth'
     | '/_app/account'
-    | '/_app/analyses'
     | '/_app/billing'
-    | '/_app/jobs'
     | '/_app/me'
     | '/_app/notifications'
     | '/_app/profile'
-    | '/_app/resumes'
     | '/_app/security'
     | '/_auth/forgot-password'
     | '/_auth/login'
@@ -256,25 +220,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/analyses': {
-      id: '/_app/analyses'
-      path: '/analyses'
-      fullPath: '/analyses'
-      preLoaderRoute: typeof AppAnalysesRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/billing': {
       id: '/_app/billing'
       path: '/billing'
       fullPath: '/billing'
       preLoaderRoute: typeof AppBillingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/jobs': {
-      id: '/_app/jobs'
-      path: '/jobs'
-      fullPath: '/jobs'
-      preLoaderRoute: typeof AppJobsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/me': {
@@ -296,13 +246,6 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof AppProfileRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/resumes': {
-      id: '/_app/resumes'
-      path: '/resumes'
-      fullPath: '/resumes'
-      preLoaderRoute: typeof AppResumesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/security': {
@@ -352,26 +295,20 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
-  AppAnalysesRoute: typeof AppAnalysesRoute
   AppBillingRoute: typeof AppBillingRoute
-  AppJobsRoute: typeof AppJobsRoute
   AppMeRoute: typeof AppMeRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppProfileRoute: typeof AppProfileRoute
-  AppResumesRoute: typeof AppResumesRoute
   AppSecurityRoute: typeof AppSecurityRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
-  AppAnalysesRoute: AppAnalysesRoute,
   AppBillingRoute: AppBillingRoute,
-  AppJobsRoute: AppJobsRoute,
   AppMeRoute: AppMeRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppProfileRoute: AppProfileRoute,
-  AppResumesRoute: AppResumesRoute,
   AppSecurityRoute: AppSecurityRoute,
   AppIndexRoute: AppIndexRoute,
 }
