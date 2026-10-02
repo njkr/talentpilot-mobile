@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { api, ApiError, type MobileSessionResponse } from "@/lib/api";
@@ -42,7 +42,7 @@ function VerifyOtpPage() {
 
   if (!email) return <Navigate to="/login" replace />;
 
-  const submit = async (e?: React.FormEvent) => {
+  const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     if (!/^\d{6}$/.test(code)) return setError("Enter the 6-digit code");
     setError(null);
