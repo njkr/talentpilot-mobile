@@ -8,12 +8,15 @@ export const getRouter = () => {
     defaultOptions: {
       queries: {
         staleTime: 30_000,
+        gcTime: 24 * 3600_000,
+        networkMode: "offlineFirst",
+        refetchOnWindowFocus: false,
         retry: (count, err) => {
           if (err instanceof ApiError && err.status >= 400 && err.status < 500) return false;
           return count < 2;
         },
       },
-      mutations: { retry: false },
+      mutations: { retry: false, networkMode: "offlineFirst" },
     },
   });
 

@@ -1,8 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { LogOut } from "lucide-react";
+import { ChevronRight, CreditCard, LogOut, Shield, UserRound, UserCog } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Badge, BottomSheet, Button, Card } from "@/components/ui/tp";
+
+export const APP_VERSION = "1.0.0";
 
 export const Route = createFileRoute("/_app/me")({
   head: () => ({
@@ -15,6 +17,13 @@ export const Route = createFileRoute("/_app/me")({
   }),
   component: MePage,
 });
+
+const ROWS = [
+  { to: "/profile", label: "Profile", icon: UserRound },
+  { to: "/billing", label: "Billing & credits", icon: CreditCard },
+  { to: "/security", label: "Security", icon: Shield },
+  { to: "/account", label: "Account", icon: UserCog },
+] as const;
 
 function MePage() {
   const { user, signOut } = useAuth();
@@ -35,10 +44,22 @@ function MePage() {
           </div>
         </div>
       </Card>
-      <p className="caption px-1">Profile, billing, security and account settings are coming next.</p>
-      <Button variant="secondary" size="full" className="text-destructive" onClick={() => setConfirm(true)}>
-        <LogOut className="h-4 w-4" /> Sign out
-      </Button>
+
+      <Card className="divide-y divide-border p-0">
+        {ROWS.map((r) => (
+          <Link key={r.to} to={r.to} className="flex min-h-14 items-center gap-3 px-4">
+            <r.icon className="h-5 w-5 text-muted-foreground" />
+            <span className="flex-1 font-medium">{r.label}</span>
+            <ChevronRight className="h-4 w-4 text-subtle" />
+          </Link>
+        ))}
+        <button onClick={() => setConfirm(true)} className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-destructive">
+          <LogOut className="h-5 w-5" />
+          <span className="flex-1 font-medium">Sign out</span>
+        </button>
+      </Card>
+
+      <p className="caption text-center">TalentPilot v{APP_VERSION}</p>
 
       <BottomSheet open={confirm} onClose={() => setConfirm(false)} title="Sign out?">
         <p className="body-text">You'll need to sign in again on this device.</p>
@@ -54,7 +75,9 @@ function MePage() {
           >
             Sign out
           </Button>
-          <Button variant="secondary" size="full" onClick={() => setConfirm(false)}>Cancel</Button>
+          <Button variant="secondary" size="full" onClick={() => setConfirm(false)}>
+            Cancel
+          </Button>
         </div>
       </BottomSheet>
     </div>

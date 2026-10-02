@@ -12,17 +12,23 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
-import { Route as AppAnalysesRouteImport } from './routes/_app.analyses'
+import { Route as AppAccountRouteImport } from './routes/_app.account'
 import { Route as AppBillingRouteImport } from './routes/_app.billing'
-import { Route as AppJobsRouteImport } from './routes/_app.jobs'
 import { Route as AppMeRouteImport } from './routes/_app.me'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
-import { Route as AppResumesRouteImport } from './routes/_app.resumes'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppSecurityRouteImport } from './routes/_app.security'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth.forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/_auth.login'
 import { Route as AuthRegisterRouteImport } from './routes/_auth.register'
 import { Route as AuthResetPasswordRouteImport } from './routes/_auth.reset-password'
 import { Route as AuthVerifyOtpRouteImport } from './routes/_auth.verify-otp'
+import { Route as AppAnalysesIndexRouteImport } from './routes/_app.analyses.index'
+import { Route as AppJobsIndexRouteImport } from './routes/_app.jobs.index'
+import { Route as AppJobsIdRouteImport } from './routes/_app.jobs.$id'
+import { Route as AppJobsNewRouteImport } from './routes/_app.jobs.new'
+import { Route as AppResumesIndexRouteImport } from './routes/_app.resumes.index'
+import { Route as AppResumesIdRouteImport } from './routes/_app.resumes.$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -37,19 +43,14 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAnalysesRoute = AppAnalysesRouteImport.update({
-  id: '/analyses',
-  path: '/analyses',
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBillingRoute = AppBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppJobsRoute = AppJobsRouteImport.update({
-  id: '/jobs',
-  path: '/jobs',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMeRoute = AppMeRouteImport.update({
@@ -62,9 +63,14 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
-const AppResumesRoute = AppResumesRouteImport.update({
-  id: '/resumes',
-  path: '/resumes',
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSecurityRoute = AppSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
   getParentRoute: () => AppRoute,
 } as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
@@ -92,97 +98,163 @@ const AuthVerifyOtpRoute = AuthVerifyOtpRouteImport.update({
   path: '/verify-otp',
   getParentRoute: () => AuthRoute,
 } as any)
+const AppAnalysesIndexRoute = AppAnalysesIndexRouteImport.update({
+  id: '/analyses/',
+  path: '/analyses/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppJobsIndexRoute = AppJobsIndexRouteImport.update({
+  id: '/jobs/',
+  path: '/jobs/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppJobsIdRoute = AppJobsIdRouteImport.update({
+  id: '/jobs/$id',
+  path: '/jobs/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppJobsNewRoute = AppJobsNewRouteImport.update({
+  id: '/jobs/new',
+  path: '/jobs/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppResumesIndexRoute = AppResumesIndexRouteImport.update({
+  id: '/resumes/',
+  path: '/resumes/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppResumesIdRoute = AppResumesIdRouteImport.update({
+  id: '/resumes/$id',
+  path: '/resumes/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
-  '/analyses': typeof AppAnalysesRoute
+  '/account': typeof AppAccountRoute
   '/billing': typeof AppBillingRoute
-  '/jobs': typeof AppJobsRoute
   '/me': typeof AppMeRoute
   '/notifications': typeof AppNotificationsRoute
-  '/resumes': typeof AppResumesRoute
+  '/profile': typeof AppProfileRoute
+  '/security': typeof AppSecurityRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/register': typeof AuthRegisterRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/verify-otp': typeof AuthVerifyOtpRoute
+  '/jobs/$id': typeof AppJobsIdRoute
+  '/jobs/new': typeof AppJobsNewRoute
+  '/resumes/$id': typeof AppResumesIdRoute
+  '/analyses/': typeof AppAnalysesIndexRoute
+  '/jobs/': typeof AppJobsIndexRoute
+  '/resumes/': typeof AppResumesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
-  '/analyses': typeof AppAnalysesRoute
+  '/account': typeof AppAccountRoute
   '/billing': typeof AppBillingRoute
-  '/jobs': typeof AppJobsRoute
   '/me': typeof AppMeRoute
   '/notifications': typeof AppNotificationsRoute
-  '/resumes': typeof AppResumesRoute
+  '/profile': typeof AppProfileRoute
+  '/security': typeof AppSecurityRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/register': typeof AuthRegisterRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/verify-otp': typeof AuthVerifyOtpRoute
+  '/jobs/$id': typeof AppJobsIdRoute
+  '/jobs/new': typeof AppJobsNewRoute
+  '/resumes/$id': typeof AppResumesIdRoute
+  '/analyses': typeof AppAnalysesIndexRoute
+  '/jobs': typeof AppJobsIndexRoute
+  '/resumes': typeof AppResumesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
-  '/_app/analyses': typeof AppAnalysesRoute
+  '/_app/account': typeof AppAccountRoute
   '/_app/billing': typeof AppBillingRoute
-  '/_app/jobs': typeof AppJobsRoute
   '/_app/me': typeof AppMeRoute
   '/_app/notifications': typeof AppNotificationsRoute
-  '/_app/resumes': typeof AppResumesRoute
+  '/_app/profile': typeof AppProfileRoute
+  '/_app/security': typeof AppSecurityRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/login': typeof AuthLoginRoute
   '/_auth/register': typeof AuthRegisterRoute
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_auth/verify-otp': typeof AuthVerifyOtpRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/jobs/$id': typeof AppJobsIdRoute
+  '/_app/jobs/new': typeof AppJobsNewRoute
+  '/_app/resumes/$id': typeof AppResumesIdRoute
+  '/_app/analyses/': typeof AppAnalysesIndexRoute
+  '/_app/jobs/': typeof AppJobsIndexRoute
+  '/_app/resumes/': typeof AppResumesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/analyses'
+    | '/account'
     | '/billing'
-    | '/jobs'
     | '/me'
     | '/notifications'
-    | '/resumes'
+    | '/profile'
+    | '/security'
     | '/forgot-password'
     | '/login'
     | '/register'
     | '/reset-password'
     | '/verify-otp'
+    | '/jobs/$id'
+    | '/jobs/new'
+    | '/resumes/$id'
+    | '/analyses/'
+    | '/jobs/'
+    | '/resumes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/analyses'
+    | '/account'
     | '/billing'
-    | '/jobs'
     | '/me'
     | '/notifications'
-    | '/resumes'
+    | '/profile'
+    | '/security'
     | '/forgot-password'
     | '/login'
     | '/register'
     | '/reset-password'
     | '/verify-otp'
+    | '/jobs/$id'
+    | '/jobs/new'
+    | '/resumes/$id'
+    | '/analyses'
+    | '/jobs'
+    | '/resumes'
   id:
     | '__root__'
     | '/_app'
     | '/_auth'
-    | '/_app/analyses'
+    | '/_app/account'
     | '/_app/billing'
-    | '/_app/jobs'
     | '/_app/me'
     | '/_app/notifications'
-    | '/_app/resumes'
+    | '/_app/profile'
+    | '/_app/security'
     | '/_auth/forgot-password'
     | '/_auth/login'
     | '/_auth/register'
     | '/_auth/reset-password'
     | '/_auth/verify-otp'
     | '/_app/'
+    | '/_app/jobs/$id'
+    | '/_app/jobs/new'
+    | '/_app/resumes/$id'
+    | '/_app/analyses/'
+    | '/_app/jobs/'
+    | '/_app/resumes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -213,11 +285,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/analyses': {
-      id: '/_app/analyses'
-      path: '/analyses'
-      fullPath: '/analyses'
-      preLoaderRoute: typeof AppAnalysesRouteImport
+    '/_app/account': {
+      id: '/_app/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/billing': {
@@ -225,13 +297,6 @@ declare module '@tanstack/react-router' {
       path: '/billing'
       fullPath: '/billing'
       preLoaderRoute: typeof AppBillingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/jobs': {
-      id: '/_app/jobs'
-      path: '/jobs'
-      fullPath: '/jobs'
-      preLoaderRoute: typeof AppJobsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/me': {
@@ -248,11 +313,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/resumes': {
-      id: '/_app/resumes'
-      path: '/resumes'
-      fullPath: '/resumes'
-      preLoaderRoute: typeof AppResumesRouteImport
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/security': {
+      id: '/_app/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof AppSecurityRouteImport
       parentRoute: typeof AppRoute
     }
     '/_auth/forgot-password': {
@@ -290,27 +362,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthVerifyOtpRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_app/analyses/': {
+      id: '/_app/analyses/'
+      path: '/analyses'
+      fullPath: '/analyses/'
+      preLoaderRoute: typeof AppAnalysesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/jobs/': {
+      id: '/_app/jobs/'
+      path: '/jobs'
+      fullPath: '/jobs/'
+      preLoaderRoute: typeof AppJobsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/jobs/$id': {
+      id: '/_app/jobs/$id'
+      path: '/jobs/$id'
+      fullPath: '/jobs/$id'
+      preLoaderRoute: typeof AppJobsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/jobs/new': {
+      id: '/_app/jobs/new'
+      path: '/jobs/new'
+      fullPath: '/jobs/new'
+      preLoaderRoute: typeof AppJobsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/resumes/': {
+      id: '/_app/resumes/'
+      path: '/resumes'
+      fullPath: '/resumes/'
+      preLoaderRoute: typeof AppResumesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/resumes/$id': {
+      id: '/_app/resumes/$id'
+      path: '/resumes/$id'
+      fullPath: '/resumes/$id'
+      preLoaderRoute: typeof AppResumesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
-  AppAnalysesRoute: typeof AppAnalysesRoute
+  AppAccountRoute: typeof AppAccountRoute
   AppBillingRoute: typeof AppBillingRoute
-  AppJobsRoute: typeof AppJobsRoute
   AppMeRoute: typeof AppMeRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
-  AppResumesRoute: typeof AppResumesRoute
+  AppProfileRoute: typeof AppProfileRoute
+  AppSecurityRoute: typeof AppSecurityRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppJobsIdRoute: typeof AppJobsIdRoute
+  AppJobsNewRoute: typeof AppJobsNewRoute
+  AppResumesIdRoute: typeof AppResumesIdRoute
+  AppAnalysesIndexRoute: typeof AppAnalysesIndexRoute
+  AppJobsIndexRoute: typeof AppJobsIndexRoute
+  AppResumesIndexRoute: typeof AppResumesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAnalysesRoute: AppAnalysesRoute,
+  AppAccountRoute: AppAccountRoute,
   AppBillingRoute: AppBillingRoute,
-  AppJobsRoute: AppJobsRoute,
   AppMeRoute: AppMeRoute,
   AppNotificationsRoute: AppNotificationsRoute,
-  AppResumesRoute: AppResumesRoute,
+  AppProfileRoute: AppProfileRoute,
+  AppSecurityRoute: AppSecurityRoute,
   AppIndexRoute: AppIndexRoute,
+  AppJobsIdRoute: AppJobsIdRoute,
+  AppJobsNewRoute: AppJobsNewRoute,
+  AppResumesIdRoute: AppResumesIdRoute,
+  AppAnalysesIndexRoute: AppAnalysesIndexRoute,
+  AppJobsIndexRoute: AppJobsIndexRoute,
+  AppResumesIndexRoute: AppResumesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

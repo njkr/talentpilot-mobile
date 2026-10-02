@@ -161,6 +161,53 @@ export const api = {
   },
   postIdempotent: <T>(path: string, body?: unknown) =>
     request<T>("POST", path, body, { "Idempotency-Key": crypto.randomUUID() }),
+  /** Multipart upload with progress (XHR). Retries once after a silent refresh. */
+  uploadWithProgress: async <T>(path: string, file: File, onProgress: (pct: number) => void): Promise<T> => {
+    const send = () =>
+      new Promise<T>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", API_BASE_URL + path);
+        for (const [k, v] of Object.entries(NGROK_HEADERS)) xhr.setRequestHeader(k, v);
+        xhr.setRequestHeader("X-Client", "mobile");
+        if (accessToken) xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+        xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
+        xhr.onerror = () => reject(new ApiError("NETWORK_ERROR", "Can't reach the server. Check your connection.", 0));
+        xhr.onload = () => {
+          let json: ApiResponse<T> | null = null;
+          try {
+            json = JSON.parse(xhr.responseText) as ApiResponse<T>;
+          } catch {
+            /* non-JSON */
+          }
+          if (xhr.status >= 200 && xhr.status < 300 && json && json.success) return resolve(json.data);
+          const err: Partial<ApiErrorBody> = json && json.success === false ? json.error : {};
+          reject(
+            new ApiError(
+              (err.code as ErrorCode) ?? "INTERNAL_ERROR",
+              err.message ?? `Upload failed (${xhr.status})`,
+              xhr.status,
+              err.details,
+              err.fields,
+              json?.meta?.requestId,
+            ),
+          );
+        };
+        const fd = new FormData();
+        fd.append("file", file);
+        xhr.send(fd);
+      });
+    try {
+      return await send();
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "TOKEN_EXPIRED") {
+        await refreshSession();
+        onProgress(0);
+        return send();
+      }
+      if (e instanceof ApiError && (e.code === "TOKEN_INVALID" || e.code === "TOKEN_REUSE_DETECTED")) await hardLogout();
+      throw e;
+    }
+  },
   list: async <T>(path: string, q: { cursor?: string | null; limit?: number } = {}): Promise<Page<T>> => {
     const params = new URLSearchParams();
     if (q.cursor) params.set("cursor", q.cursor);

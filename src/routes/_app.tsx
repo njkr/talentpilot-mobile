@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { Logo, Splash } from "@/components/ui/tp";
 import { cn } from "@/lib/utils";
 import type { CreditBalance, UnreadCount } from "@/types/api";
+import { NewAnalysisSheet, UpgradeSheet } from "@/components/GlobalSheets";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -24,8 +25,6 @@ const TITLES: Record<string, string> = {
   "/jobs": "Jobs",
   "/analyses": "Analyses",
   "/me": "Me",
-  "/notifications": "Notifications",
-  "/billing": "Billing",
 };
 
 /** RequireAuth + app shell. */
@@ -77,9 +76,11 @@ function Shell() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 pb-24 pt-4">
+      <main className="flex-1 px-4 pb-28 pt-4">
         <Outlet />
       </main>
+      <UpgradeSheet />
+      <NewAnalysisSheet />
 
       <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg border-t border-border bg-card">
         <ul className="grid grid-cols-5">
