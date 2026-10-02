@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
+import { forwardRef, useEffect, type HTMLAttributes, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -84,7 +84,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, error, h
 Input.displayName = "Input";
 
 // ── Card ───────────────────────────────────────────────────────────────
-export function Card({ className, children, ...p }: React.HTMLAttributes<HTMLDivElement>) {
+export function Card({ className, children, ...p }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div className={cn("rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm", className)} {...p}>
       {children}
