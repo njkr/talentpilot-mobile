@@ -18,6 +18,7 @@ import { Route as AppBillingRouteImport } from './routes/_app.billing'
 import { Route as AppJobsRouteImport } from './routes/_app.jobs'
 import { Route as AppMeRouteImport } from './routes/_app.me'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppResumesRouteImport } from './routes/_app.resumes'
 import { Route as AppSecurityRouteImport } from './routes/_app.security'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth.forgot-password'
@@ -69,6 +70,11 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppResumesRoute = AppResumesRouteImport.update({
   id: '/resumes',
   path: '/resumes',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/jobs': typeof AppJobsRoute
   '/me': typeof AppMeRoute
   '/notifications': typeof AppNotificationsRoute
+  '/profile': typeof AppProfileRoute
   '/resumes': typeof AppResumesRoute
   '/security': typeof AppSecurityRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/jobs': typeof AppJobsRoute
   '/me': typeof AppMeRoute
   '/notifications': typeof AppNotificationsRoute
+  '/profile': typeof AppProfileRoute
   '/resumes': typeof AppResumesRoute
   '/security': typeof AppSecurityRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/_app/jobs': typeof AppJobsRoute
   '/_app/me': typeof AppMeRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/profile': typeof AppProfileRoute
   '/_app/resumes': typeof AppResumesRoute
   '/_app/security': typeof AppSecurityRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/me'
     | '/notifications'
+    | '/profile'
     | '/resumes'
     | '/security'
     | '/forgot-password'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/me'
     | '/notifications'
+    | '/profile'
     | '/resumes'
     | '/security'
     | '/forgot-password'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_app/jobs'
     | '/_app/me'
     | '/_app/notifications'
+    | '/_app/profile'
     | '/_app/resumes'
     | '/_app/security'
     | '/_auth/forgot-password'
@@ -279,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/resumes': {
       id: '/_app/resumes'
       path: '/resumes'
@@ -338,6 +357,7 @@ interface AppRouteChildren {
   AppJobsRoute: typeof AppJobsRoute
   AppMeRoute: typeof AppMeRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppResumesRoute: typeof AppResumesRoute
   AppSecurityRoute: typeof AppSecurityRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -350,6 +370,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJobsRoute: AppJobsRoute,
   AppMeRoute: AppMeRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppProfileRoute: AppProfileRoute,
   AppResumesRoute: AppResumesRoute,
   AppSecurityRoute: AppSecurityRoute,
   AppIndexRoute: AppIndexRoute,
