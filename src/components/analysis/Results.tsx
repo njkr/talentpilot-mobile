@@ -10,6 +10,7 @@ import { ActionButton, CardSkeletons, CheckBox, Chip, Collapsible, ErrorState, P
 import { ImportanceBadge } from "@/routes/_app.jobs.$id";
 import { Badge, Card, EmptyState, Input } from "@/components/ui/tp";
 import { cn } from "@/lib/utils";
+import type { RescoreResponse, RescoreStatus } from "@/types/api";
 import type {
   AtsReport, CompanyInsight, CoverLetter, CoverLetterLength, CoverLetterTone, InterviewQuestion, LearningRoadmap,
   SalaryEstimate, Suggestion,
