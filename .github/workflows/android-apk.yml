@@ -1,0 +1,80 @@
+name: Android debug APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: 'API base URL incl. /api/v1 (overrides the VITE_API_BASE_URL secret)'
+        required: false
+        type: string
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # Lockfile in this repo is bun.lock, so CI installs with Bun.
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Capacitor 8 compiles Android with Java 21.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Resolve API base URL
+        env:
+          INPUT_URL: ${{ inputs.api_base_url }}
+          SECRET_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: |
+          url="${INPUT_URL:-$SECRET_URL}"
+          if [ -z "$url" ]; then
+            echo "::error::No API URL. Set the VITE_API_BASE_URL repo secret or pass the api_base_url input."
+            exit 1
+          fi
+          echo "::add-mask::$url"
+          echo "VITE_API_BASE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Build static web app
+        run: bun run build:mobile
+
+      - name: Check web build output
+        run: test -f dist/client/index.html
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Short SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: talentpilot-debug-${{ steps.sha.outputs.short }}
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
