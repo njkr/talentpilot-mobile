@@ -3,7 +3,7 @@ import { LineChart, Plus } from "lucide-react";
 import { z } from "zod";
 import { qk, useList } from "@/lib/queries";
 import { openNewAnalysis } from "@/lib/stores";
-import { Chip, flat, fmtDate, InfiniteList, scoreText } from "@/components/app";
+import { AnalysisSubtitle, Chip, flat, InfiniteList, scoreText } from "@/components/app";
 import { Button, Card, EmptyState } from "@/components/ui/tp";
 import { WsStatusBadge } from "@/lib/resumeUi";
 import { cn } from "@/lib/utils";
@@ -57,9 +57,9 @@ function AnalysesPage() {
             <Card className="flex min-h-14 items-center gap-3 p-3">
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{w.name}</span>
-                <span className="mt-1 flex items-center gap-2">
+                <span className="mt-1 flex min-w-0 items-center gap-2">
                   <WsStatusBadge s={w.status} />
-                  <span className="caption">{fmtDate(w.createdAt)}</span>
+                  <AnalysisSubtitle workspaceId={w.id} resumeId={w.resumeId} date={w.createdAt} />
                 </span>
               </span>
               {w.overallScore != null && <span className={cn("font-display text-xl font-extrabold", scoreText(w.overallScore))}>{Math.round(w.overallScore)}</span>}
@@ -67,12 +67,14 @@ function AnalysesPage() {
           </Link>
         )}
       />
-      <button
-        onClick={() => openNewAnalysis()}
-        className="fixed bottom-24 right-4 z-20 inline-flex h-14 items-center gap-2 rounded-full bg-primary px-5 font-semibold text-primary-foreground shadow-lg sm:right-[calc(50%-15rem)]"
-      >
-        <Plus className="h-5 w-5" /> New analysis
-      </button>
+      {!q.isPending && items.length > 0 && (
+        <Button
+          onClick={() => openNewAnalysis()}
+          className="fab-bottom fixed right-4 z-20 h-14 rounded-full px-5 shadow-lg sm:right-[calc(50%-15rem)]"
+        >
+          <Plus className="h-5 w-5" /> New analysis
+        </Button>
+      )}
     </div>
   );
 }

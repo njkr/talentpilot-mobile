@@ -22,6 +22,7 @@ export const qk = {
   sessions: ["sessions"] as const,
   resumes: ["resumes"] as const,
   resume: (id: string) => ["resume", id] as const,
+  versions: (id: string) => ["resume", id, "versions"] as const,
   sections: (id: string) => ["resume", id, "sections"] as const,
   jobs: ["jobs"] as const,
   job: (id: string) => ["job", id] as const,

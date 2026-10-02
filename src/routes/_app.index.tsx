@@ -4,7 +4,7 @@ import { Line, LineChart, ResponsiveContainer } from "recharts";
 import { AlertTriangle, ChevronRight, FileText, Sparkles, Upload, UserRound, Zap } from "lucide-react";
 import { api } from "@/lib/api";
 import { qk } from "@/lib/queries";
-import { CardSkeletons, ErrorState, PullToRefresh, scoreText } from "@/components/app";
+import { AnalysisSubtitle, CardSkeletons, ErrorState, PullToRefresh, scoreText } from "@/components/app";
 import { Badge, Button, Card, EmptyState } from "@/components/ui/tp";
 import { cn } from "@/lib/utils";
 import type { DashboardOverview } from "@/types/api";
@@ -112,7 +112,12 @@ function HomePage() {
             <p className="font-display text-2xl font-bold">{d.creditInsight.balance}</p>
             <p className="caption mt-1">~{d.creditInsight.runsRemaining} analyses left</p>
             {(d.creditInsight.spentLast30Days > 0 || d.creditInsight.grantedLast30Days > 0) ? (
-              <p className="caption">−{d.creditInsight.spentLast30Days} / +{d.creditInsight.grantedLast30Days} (30d)</p>
+              <p className="caption">
+                {[
+                  d.creditInsight.spentLast30Days > 0 ? `−${d.creditInsight.spentLast30Days}` : null,
+                  d.creditInsight.grantedLast30Days > 0 ? `+${d.creditInsight.grantedLast30Days}` : null,
+                ].filter(Boolean).join(" / ")} · last 30 days
+              </p>
             ) : (
               <p className="caption">No credit activity in the last 30 days</p>
             )}
@@ -189,7 +194,7 @@ function HomePage() {
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{w.name}</span>
-                    <span className="caption capitalize">{w.status}</span>
+                    <AnalysisSubtitle workspaceId={w.id} date={w.updatedAt} fallback={w.status} />
                   </span>
                   {w.score != null && <span className={cn("font-display text-lg font-bold", scoreText(w.score))}>{Math.round(w.score)}</span>}
                   <ChevronRight className="h-4 w-4 text-subtle" />

@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { qk } from "@/lib/queries";
 import { toastError } from "@/lib/errors";
 import { openNewAnalysis } from "@/lib/stores";
-import { ActionButton, CardSkeletons, Collapsible, ErrorState, fmtDate, PageHeader } from "@/components/app";
+import { ActionButton, ActionSheet, CardSkeletons, Collapsible, ErrorState, fmtDate, PageHeader } from "@/components/app";
 import { Badge, BottomSheet, Card } from "@/components/ui/tp";
 import { ResumeStatusBadge } from "@/lib/resumeUi";
 import type {
@@ -78,10 +78,16 @@ function ResumeDetail() {
 
   return (
     <div className="space-y-3">
-      <PageHeader title={r.title} />
+      <PageHeader
+        title={r.title}
+        right={<ActionSheet title="Resume" actions={[
+          { label: "Use in new analysis", icon: <Sparkles className="h-5 w-5" />, onSelect: () => openNewAnalysis({ resumeId: id }) },
+          { label: "Retry parsing", icon: <RotateCw className="h-5 w-5" />, hidden: r.status !== "failed", onSelect: () => retry.mutate() },
+        ]} />}
+      />
       <Card className="flex items-center justify-between">
         <div className="caption space-y-0.5">
-          <p>{r.pageCount ?? "–"} pages · {r.wordCount ?? "–"} words</p>
+          <p>{r.pageCount ?? "–"} {r.pageCount === 1 ? "page" : "pages"} · {r.wordCount ?? "–"} words</p>
           <p>{(r.fileSize / 1024).toFixed(0)} KB · {r.language?.toUpperCase() ?? "—"} · {fmtDate(r.createdAt)}</p>
         </div>
         <ResumeStatusBadge s={r.status} />

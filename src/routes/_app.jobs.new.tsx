@@ -80,7 +80,7 @@ function NewJob() {
       <PageHeader title="Add job" />
       <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
         {(["paste", "upload"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={cn("min-h-11 rounded-lg text-sm font-semibold capitalize", tab === t ? "bg-card shadow-sm" : "text-muted-foreground")}>
+          <button key={t} onClick={() => setTab(t)} className={cn("min-h-11 rounded-lg text-sm font-semibold capitalize focus-visible:ring-2 focus-visible:ring-primary", tab === t ? "bg-card shadow-sm" : "text-muted-foreground")}>
             {t === "paste" ? "Paste text" : "Upload file"}
           </button>
         ))}

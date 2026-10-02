@@ -11,6 +11,7 @@
 - Native features go through src/lib/native.ts (lazy Capacitor imports with web fallbacks) so the browser preview keeps working.
 - App-wide sheets (upgrade, new analysis) and connectivity use tiny stores in src/lib/stores.ts; open BottomSheets register there so the Android back button closes them first.
 - Lists use useList (cursor infinite query) + InfiniteList from src/components/app.tsx; mutations route errors through toastError/handleUpgradeError.
+- Keep global top chrome on the five tab roots only; stack and detail screens use PageHeader for back, title, and actions so mobile navigation is not duplicated.
 
 ## Android build (do not break)
 - Keep capacitor.config.ts webDir = "dist/client", the build:mobile script, and vite.config.mobile.ts — CI builds the APK from them.

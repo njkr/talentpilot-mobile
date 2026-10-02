@@ -48,23 +48,23 @@
   --card-foreground: hsl(221 39% 11%);
   --popover: hsl(0 0% 100%);
   --popover-foreground: hsl(221 39% 11%);
-  --primary: hsl(221 83% 53%);
+  --primary: #2563eb;
   --primary-foreground: hsl(0 0% 100%);
-  --primary-hover: hsl(224 76% 48%);
+  --primary-hover: #1d4ed8;
   --secondary: hsl(0 0% 100%);
   --secondary-foreground: hsl(221 39% 11%);
   --muted: hsl(0 0% 98%);
   --muted-foreground: hsl(220 9% 46%);
   --subtle-foreground: hsl(218 11% 65%);
   --accent: hsl(221 83% 96%);
-  --accent-foreground: hsl(221 83% 53%);
+  --accent-foreground: #2563eb;
   --destructive: hsl(0 72% 51%);
   --destructive-foreground: hsl(0 0% 100%);
   --success: hsl(142 76% 36%);
   --warning: hsl(38 92% 50%);
   --border: hsl(220 13% 91%);
   --input: hsl(220 13% 91%);
-  --ring: hsl(221 83% 53%);
+  --ring: #2563eb;
   --overlay: hsl(221 39% 11% / 0.45);
   --radius: 0.5rem;
 }
@@ -82,6 +82,13 @@
     -webkit-font-smoothing: antialiased;
     overscroll-behavior-y: none;
   }
+  :where(a, button, [role="tab"], [tabindex]):focus {
+    outline: none;
+  }
+  :where(a, button, [role="tab"], [tabindex]):focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
 }
 
 @utility pt-safe {
@@ -89,6 +96,18 @@
 }
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+@utility app-scroll-bottom {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 1rem);
+}
+@utility fab-bottom {
+  bottom: calc(4rem + env(safe-area-inset-bottom) + 1rem);
+}
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 @utility h1 {
   font-size: 1.5rem;

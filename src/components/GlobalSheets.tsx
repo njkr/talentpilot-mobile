@@ -120,7 +120,7 @@ export function NewAnalysisSheet() {
           ) : (
             <div className="space-y-2">
               {parsed.map((r) => (
-                <Pick key={r.id} active={resumeId === r.id} onClick={() => setResumeId(r.id)} icon={<FileText className="h-5 w-5" />} title={r.title} sub={`${r.pageCount ?? "?"} pages · ${r.wordCount ?? "?"} words`} />
+                <Pick key={r.id} active={resumeId === r.id} onClick={() => setResumeId(r.id)} icon={<FileText className="h-5 w-5" />} title={r.title} sub={`${r.pageCount ?? "?"} ${r.pageCount === 1 ? "page" : "pages"} · ${r.wordCount ?? "?"} words`} />
               ))}
             </div>
           )}

@@ -7,7 +7,10 @@ import { friendlyError } from "@/lib/errors";
 import { useOnline } from "@/lib/stores";
 import { cn } from "@/lib/utils";
 import { BottomSheet, Button, Card, Skeleton } from "@/components/ui/tp";
-import type { Page } from "@/types/api";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { qk } from "@/lib/queries";
+import type { Page, Resume, Workspace } from "@/types/api";
 
 // ── Page header with back button ──────────────────────────────────────
 export function PageHeader({ title, back = true, right }: { title: string; back?: boolean; right?: ReactNode }) {
@@ -27,6 +30,21 @@ export function PageHeader({ title, back = true, right }: { title: string; back?
       {right}
     </div>
   );
+}
+
+export function AnalysisSubtitle({ workspaceId, resumeId, date, fallback }: { workspaceId: string; resumeId?: string; date: string; fallback?: string }) {
+  const workspace = useQuery({
+    queryKey: qk.workspace(workspaceId),
+    queryFn: () => api.get<Workspace>(`/workspaces/${workspaceId}`),
+    enabled: !resumeId,
+  });
+  const resolvedResumeId = resumeId ?? workspace.data?.resumeId;
+  const resume = useQuery({
+    queryKey: qk.resume(resolvedResumeId ?? ""),
+    queryFn: () => api.get<Resume>(`/resumes/${resolvedResumeId}`),
+    enabled: !!resolvedResumeId,
+  });
+  return <span className="caption block min-w-0 truncate">{resume.data?.title ?? fallback ?? "Resume"} · {fmtDate(date)}</span>;
 }
 
 // ── Error state ───────────────────────────────────────────────────────
@@ -382,7 +400,7 @@ export function Chip({ active, onClick, children }: { active?: boolean; onClick?
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium capitalize",
+        "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium capitalize focus-visible:ring-2 focus-visible:ring-primary",
         active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground",
       )}
     >
