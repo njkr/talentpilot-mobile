@@ -1,4 +1,6 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import {
   Outlet,
   Link,
@@ -8,12 +10,14 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth";
+import { useOnline } from "../lib/stores";
+import { NativeBridge } from "../components/GlobalSheets";
 
 function NotFoundComponent() {
   return (
@@ -120,35 +124,41 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function OfflineBanner() {
-  const [offline, setOffline] = useState(false);
-  useEffect(() => {
-    const update = () => setOffline(!navigator.onLine);
-    update();
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    return () => {
-      window.removeEventListener("online", update);
-      window.removeEventListener("offline", update);
-    };
-  }, []);
-  if (!offline) return null;
+  const online = useOnline();
+  if (online) return null;
   return (
     <div className="pt-safe fixed inset-x-0 top-0 z-[60] bg-warning text-center text-xs font-medium text-foreground">
-      <div className="py-1.5">You're offline. Some actions won't work.</div>
+      <div className="py-1.5">You're offline. Showing saved data.</div>
     </div>
   );
 }
+
+const PERSIST_ROOTS = new Set(["dashboard", "resumes", "resume", "jobs", "job", "workspaces", "workspace", "credits", "profile"]);
+const persister = createSyncStoragePersister({
+  storage: typeof window !== "undefined" ? window.localStorage : undefined,
+  key: "tp_query_cache",
+});
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister,
+        maxAge: 7 * 24 * 3600_000,
+        dehydrateOptions: {
+          shouldDehydrateQuery: (q) => q.state.status === "success" && PERSIST_ROOTS.has(String(q.queryKey[0])),
+        },
+      }}
+    >
       <AuthProvider>
+        <NativeBridge />
         <OfflineBanner />
         <Outlet />
-        <Toaster position="top-center" richColors />
+        <Toaster position="bottom-center" offset={88} richColors />
       </AuthProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
