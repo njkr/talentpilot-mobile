@@ -56,7 +56,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 // ── Input ──────────────────────────────────────────────────────────────
-type InputProps = InputHTMLAttributes<HTMLInputElement> & { label?: string; error?: string; hint?: string };
+type InputProps = InputHTMLAttributes<HTMLInputElement> & { label?: string | undefined; error?: string | undefined; hint?: string | undefined };
 export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, error, hint, className, id, ...p }, ref) => {
   const inputId = id ?? p.name;
   return (

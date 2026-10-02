@@ -82,14 +82,14 @@ async function rawRequest<T>(
   const headers: Record<string, string> = { ...NGROK_HEADERS, "X-Client": "mobile", ...extraHeaders };
   const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
-  if (withAuth && accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  if (withAuth && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
   let res: Response;
   try {
     res = await fetch(API_BASE_URL + path, {
       method,
       headers,
-      body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
+      body: body === undefined ? null : isForm ? (body as FormData) : JSON.stringify(body),
     });
   } catch {
     throw new ApiError("NETWORK_ERROR", "Can't reach the server. Check your connection.", 0);

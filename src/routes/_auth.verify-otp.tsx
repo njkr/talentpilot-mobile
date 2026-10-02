@@ -54,7 +54,7 @@ function VerifyOtpPage() {
       setCode("");
       if (err instanceof ApiError) {
         if (err.code === "OTP_INVALID") {
-          const r = Number(err.details?.remaining);
+          const r = Number(err.details?.["remaining"]);
           setError(Number.isFinite(r) ? `Incorrect code. ${r} attempt${r === 1 ? "" : "s"} left.` : "Incorrect code.");
         } else if (err.code === "OTP_EXPIRED") setError("This code has expired. Request a new one.");
         else if (err.code === "OTP_MAX_ATTEMPTS") {

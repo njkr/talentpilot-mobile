@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/api";
 
 export function retryAfter(e: ApiError): number {
-  const n = Number(e.details?.retryAfterSec);
+  const n = Number(e.details?.["retryAfterSec"]);
   return Number.isFinite(n) && n > 0 ? n : 60;
 }
 
