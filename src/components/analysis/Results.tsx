@@ -1,0 +1,448 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { ChevronDown, Copy, ExternalLink, Loader2, RefreshCw, Share2, ShieldCheck } from "lucide-react";
+import { api, ApiError } from "@/lib/api";
+import { qk, COVER_REGEN_COST, FEEDBACK_COST, RESCORE_COST } from "@/lib/queries";
+import { toastError } from "@/lib/errors";
+import { copyText, openExternal, shareText } from "@/lib/native";
+import { ActionButton, CardSkeletons, CheckBox, Chip, Collapsible, ErrorState, ProgressBar, ScoreRing, scoreTone } from "@/components/app";
+import { ImportanceBadge } from "@/routes/_app.jobs.$id";
+import { Badge, Card, EmptyState, Input } from "@/components/ui/tp";
+import { cn } from "@/lib/utils";
+import type {
+  AtsReport, CompanyInsight, CoverLetter, CoverLetterLength, CoverLetterTone, InterviewQuestion, LearningRoadmap,
+  SalaryEstimate, Suggestion,
+} from "@/types/api";
+
+export const TABS = ["report", "suggestions", "cover-letter", "interview", "company", "salary", "learning"] as const;
+export type Tab = (typeof TABS)[number];
+const TAB_LABEL: Record<Tab, string> = {
+  report: "Report", suggestions: "Suggestions", "cover-letter": "Cover Letter", interview: "Interview", company: "Company", salary: "Salary", learning: "Learning",
+};
+
+export function Results({ wsId, tab, setTab }: { wsId: string; tab: Tab; setTab: (t: Tab) => void }) {
+  const [opened, setOpened] = useState<Set<Tab>>(() => new Set([tab]));
+  useEffect(() => setOpened((s) => (s.has(tab) ? s : new Set(s).add(tab))), [tab]);
+  return (
+    <div className="space-y-3">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="tablist">
+        {TABS.map((t) => (
+          <Chip key={t} active={tab === t} onClick={() => setTab(t)}>{TAB_LABEL[t]}</Chip>
+        ))}
+      </div>
+      {TABS.map((t) =>
+        opened.has(t) ? (
+          <div key={t} hidden={t !== tab}>
+            {t === "report" && <ReportTab wsId={wsId} />}
+            {t === "suggestions" && <SuggestionsTab wsId={wsId} goReport={() => setTab("report")} />}
+            {t === "cover-letter" && <CoverTab wsId={wsId} />}
+            {t === "interview" && <InterviewTab wsId={wsId} />}
+            {t === "company" && <CompanyTab wsId={wsId} />}
+            {t === "salary" && <SalaryTab wsId={wsId} />}
+            {t === "learning" && <LearningTab wsId={wsId} />}
+          </div>
+        ) : null,
+      )}
+    </div>
+  );
+}
+
+const is404 = (e: unknown) => e instanceof ApiError && (e.status === 404 || e.code === "NOT_FOUND");
+function Gate<T>({ q, children, notReady }: { q: { isPending: boolean; isError: boolean; error: unknown; data: T | undefined; refetch: () => unknown }; children: (d: T) => ReactNode; notReady?: string }) {
+  if (q.isPending) return <CardSkeletons count={3} h="h-32" />;
+  if (q.isError && !q.data) {
+    if (is404(q.error) || (q.error instanceof ApiError && q.error.code === "REPORT_NOT_READY"))
+      return <EmptyState title={notReady ?? "Not available for this analysis"} />;
+    return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
+  }
+  return <>{children(q.data as T)}</>;
+}
+
+// ── Report ────────────────────────────────────────────────────────────
+function ReportTab({ wsId }: { wsId: string }) {
+  const qc = useQueryClient();
+  const [waitFrom, setWaitFrom] = useState<{ id: string; at: number } | null>(null);
+  const q = useQuery({
+    queryKey: qk.ws(wsId, "report"),
+    queryFn: () => api.get<AtsReport>(`/workspaces/${wsId}/report`),
+    refetchInterval: waitFrom ? 3000 : false,
+  });
+  useEffect(() => {
+    if (!waitFrom || !q.data) return;
+    if (q.data.id !== waitFrom.id) {
+      setWaitFrom(null);
+      toast.success("Score updated");
+      void qc.invalidateQueries({ queryKey: qk.workspaces });
+    } else if (Date.now() - waitFrom.at > 120_000) {
+      setWaitFrom(null);
+      toast("Still recalculating — check back in a bit.");
+    }
+  }, [q.data, waitFrom, qc]);
+  const rescore = useMutation({
+    mutationFn: () => api.postIdempotent(`/workspaces/${wsId}/rescore`),
+    onSuccess: () => {
+      setWaitFrom({ id: q.data?.id ?? "", at: Date.now() });
+      void qc.invalidateQueries({ queryKey: qk.credits });
+    },
+    onError: (e) => toastError(e, { NO_CHANGES_TO_RESCORE: "Apply some suggestions first" }),
+  });
+  const [openKw, setOpenKw] = useState<string | null>(null);
+
+  return (
+    <Gate q={q} notReady="No report yet">
+      {(r) => {
+        const delta = r.original ? Math.round(r.overallScore - r.original.overallScore) : 0;
+        return (
+          <div className="space-y-3">
+            <Card className="flex items-center gap-4">
+              <ScoreRing score={r.overallScore} />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                {r.matchBand && <Badge tone={r.matchBand.band === "strong" ? "success" : r.matchBand.band === "fair" ? "primary" : "warning"}><span className="capitalize">{r.matchBand.band} match</span></Badge>}
+                {r.matchBand && <p className="text-sm">Meets {r.matchBand.requiredMet} of {r.matchBand.requiredTotal} required</p>}
+                {delta !== 0 && <p className={cn("text-sm font-semibold", delta > 0 ? "text-success" : "text-destructive")}>{delta > 0 ? `▲ +${delta}` : `▼ ${delta}`} vs original</p>}
+              </div>
+            </Card>
+            {waitFrom ? (
+              <Card className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Recalculating…</Card>
+            ) : (
+              <ActionButton variant="secondary" size="full" loading={rescore.isPending} onClick={() => rescore.mutate()}>
+                <RefreshCw className="h-4 w-4" /> Recalculate — {RESCORE_COST} credits
+              </ActionButton>
+            )}
+            {r.summary && <Card><p className="body-text">{r.summary}</p></Card>}
+            {r.scoreBreakdown.length > 0 && (
+              <Card className="space-y-3">
+                <h3 className="h3">Score breakdown</h3>
+                {r.scoreBreakdown.map((b) => (
+                  <div key={b.component}>
+                    <div className="mb-1 flex justify-between text-sm"><span className="capitalize">{b.component.replace(/_/g, " ")}</span><span className="font-semibold">{Math.round(b.score)}</span></div>
+                    <ProgressBar value={b.score} tone={scoreTone(b.score)} />
+                  </div>
+                ))}
+              </Card>
+            )}
+            {(["matched", "partial", "missing"] as const).map((st) => {
+              const list = r.keywords.filter((k) => k.status === st);
+              if (!list.length) return null;
+              return (
+                <Collapsible key={st} defaultOpen={st === "missing"} title={<span className="capitalize">{st} keywords ({list.length})</span>}>
+                  <ul className="divide-y divide-border">
+                    {list.map((k) => (
+                      <li key={k.keyword}>
+                        <button className="flex min-h-11 w-full items-center gap-2 text-left" onClick={() => setOpenKw(openKw === k.keyword ? null : k.keyword)}>
+                          <span className="flex-1 text-sm font-medium">{k.keyword}</span>
+                          <ImportanceBadge i={k.importance} />
+                          <ChevronDown className={cn("h-4 w-4 transition-transform", openKw !== k.keyword && "-rotate-90")} />
+                        </button>
+                        {openKw === k.keyword && (
+                          <div className="caption space-y-1 pb-2">
+                            {k.evidence && <p><b>Evidence:</b> {k.evidence}</p>}
+                            {k.suggestion && <p><b>Suggestion:</b> {k.suggestion}</p>}
+                            {!k.evidence && !k.suggestion && <p>No extra details.</p>}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </Collapsible>
+              );
+            })}
+            <ListCard title="Strengths" items={r.strengths} />
+            <ListCard title="Weaknesses" items={r.weaknesses} />
+            <ListCard title="Recommendations" items={r.recommendations} />
+          </div>
+        );
+      }}
+    </Gate>
+  );
+}
+
+function ListCard({ title, items }: { title: string; items: string[] }) {
+  if (!items?.length) return null;
+  return (
+    <Card>
+      <h3 className="h3 mb-2">{title}</h3>
+      <ul className="body-text list-disc space-y-1 pl-5">{items.map((s, i) => <li key={i}>{s}</li>)}</ul>
+    </Card>
+  );
+}
+
+// ── Suggestions ───────────────────────────────────────────────────────
+function SuggestionsTab({ wsId, goReport }: { wsId: string; goReport: () => void }) {
+  const qc = useQueryClient();
+  const get = (s: string) => api.get<Suggestion[]>(`/workspaces/${wsId}/suggestions?status=${s}`);
+  const pending = useQuery({ queryKey: qk.ws(wsId, "sug-pending"), queryFn: () => get("pending") });
+  const needs = useQuery({ queryKey: qk.ws(wsId, "sug-needs"), queryFn: () => get("needs_info") });
+  const accepted = useQuery({ queryKey: qk.ws(wsId, "sug-accepted"), queryFn: () => get("accepted") });
+  const rejected = useQuery({ queryKey: qk.ws(wsId, "sug-rejected"), queryFn: () => get("rejected") });
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [appliedBanner, setAppliedBanner] = useState(false);
+  const inval = () => ["sug-pending", "sug-needs", "sug-accepted", "sug-rejected"].forEach((p) => void qc.invalidateQueries({ queryKey: qk.ws(wsId, p) }));
+
+  const apply = useMutation({
+    mutationFn: (ids: string[]) => api.post<{ applied: number; skipped: string[] }>(`/workspaces/${wsId}/suggestions/apply`, { suggestionIds: ids }),
+    onSuccess: (r) => {
+      setSel(new Set());
+      inval();
+      void qc.invalidateQueries({ queryKey: qk.dashboard });
+      setAppliedBanner(true);
+      toast.success(`Applied ${r.applied}${r.skipped.length ? ` · ${r.skipped.length} skipped` : ""}`);
+    },
+    onError: (e) => toastError(e),
+  });
+  const reject = useMutation({
+    mutationFn: (ids: string[]) => api.post<{ rejected: number }>(`/workspaces/${wsId}/suggestions/reject`, { suggestionIds: ids }),
+    onSuccess: (r) => {
+      setSel(new Set());
+      inval();
+      toast.success(`Rejected ${r.rejected}`);
+    },
+    onError: (e) => toastError(e),
+  });
+
+  if (pending.isPending) return <CardSkeletons count={3} h="h-40" />;
+  if (pending.isError) return <ErrorState error={pending.error} onRetry={() => void pending.refetch()} />;
+  const list = pending.data;
+  const allSel = list.length > 0 && sel.size === list.length;
+  const toggle = (id: string, v: boolean) => setSel((s) => { const n = new Set(s); if (v) n.add(id); else n.delete(id); return n; });
+
+  return (
+    <div className="space-y-3 pb-20">
+      {appliedBanner && (
+        <button onClick={goReport} className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-primary/30 bg-accent p-3 text-left text-sm font-medium">
+          <RefreshCw className="h-5 w-5 text-primary" /> Recalculate your score — {RESCORE_COST} credits
+        </button>
+      )}
+      <p className="caption flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> Every suggestion is checked against your original resume.</p>
+      {list.length > 0 && (
+        <div className="flex items-center">
+          <CheckBox checked={allSel} label="Select all" onChange={(v) => setSel(v ? new Set(list.map((s) => s.id)) : new Set())} />
+          <span className="text-sm font-medium">Select all ({list.length})</span>
+        </div>
+      )}
+      {list.length === 0 && !needs.data?.length ? <EmptyState title="No pending suggestions" description="You've reviewed everything." /> : null}
+      {list.map((s) => (
+        <SuggestionCard key={s.id} s={s} checked={sel.has(s.id)} onCheck={(v) => toggle(s.id, v)} onReject={() => reject.mutate([s.id])} />
+      ))}
+      {needs.data?.map((s) => <NeedsInfoCard key={s.id} wsId={wsId} s={s} onDone={inval} />)}
+      {(accepted.data?.length ?? 0) + (rejected.data?.length ?? 0) > 0 && (
+        <Collapsible title={`Reviewed (${(accepted.data?.length ?? 0) + (rejected.data?.length ?? 0)})`}>
+          <div className="space-y-3">
+            {[...(accepted.data ?? []), ...(rejected.data ?? [])].map((s) => <SuggestionCard key={s.id} s={s} />)}
+          </div>
+        </Collapsible>
+      )}
+      {sel.size > 0 && (
+        <div className="pb-safe fixed inset-x-0 bottom-16 z-20 mx-auto flex max-w-lg gap-2 border-t border-border bg-card p-3">
+          <div className="flex-1"><ActionButton variant="secondary" size="full" loading={reject.isPending} onClick={() => reject.mutate([...sel])}>Reject {sel.size}</ActionButton></div>
+          <div className="flex-[2]"><ActionButton size="full" loading={apply.isPending} onClick={() => apply.mutate([...sel])}>Apply {sel.size}</ActionButton></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SuggestionCard({ s, checked, onCheck, onReject }: { s: Suggestion; checked?: boolean; onCheck?: (v: boolean) => void; onReject?: () => void }) {
+  return (
+    <Card className="space-y-2 p-3">
+      <div className="flex items-center gap-2">
+        {onCheck && <CheckBox checked={!!checked} label="Select suggestion" onChange={onCheck} />}
+        <span className="caption flex-1 font-semibold uppercase tracking-wide">{s.sectionType.replace(/_/g, " ")}</span>
+        <Badge tone={s.impact === "high" ? "success" : s.impact === "medium" ? "primary" : "neutral"}>{s.impact} impact</Badge>
+        {s.status !== "pending" && <Badge tone={s.status === "accepted" ? "success" : "neutral"}>{s.status}</Badge>}
+      </div>
+      {s.oldText && <p className="text-sm text-muted-foreground line-through">{s.oldText}</p>}
+      <p className="text-sm font-medium text-success">{s.newText}</p>
+      {s.reason && <p className="caption">{s.reason}</p>}
+      {s.keywordsAdded.length > 0 && <div className="flex flex-wrap gap-1">{s.keywordsAdded.map((k) => <Badge key={k} tone="primary">+{k}</Badge>)}</div>}
+      {onReject && <button onClick={onReject} className="min-h-11 text-sm font-semibold text-muted-foreground">Reject</button>}
+    </Card>
+  );
+}
+
+function NeedsInfoCard({ wsId, s, onDone }: { wsId: string; s: Suggestion; onDone: () => void }) {
+  const [v, setV] = useState("");
+  const m = useMutation({
+    mutationFn: () => api.post<Suggestion>(`/workspaces/${wsId}/suggestions/${s.id}/provide-detail`, { newText: v.trim() }),
+    onSuccess: () => { toast.success("Thanks — suggestion updated"); onDone(); },
+    onError: (e) => toastError(e),
+  });
+  return (
+    <Card className="space-y-2 border-warning/40 p-3">
+      <Badge tone="warning">Needs your input</Badge>
+      <p className="text-sm">{s.newText}</p>
+      {s.missingFact && <p className="text-sm font-medium">{s.missingFact}</p>}
+      <Input value={v} maxLength={2000} onChange={(e) => setV(e.target.value)} placeholder={s.exampleValue ? `e.g. ${s.exampleValue}` : "Add the detail"} aria-label="Detail" />
+      <ActionButton size="full" disabled={!v.trim()} loading={m.isPending} onClick={() => m.mutate()}>Submit</ActionButton>
+    </Card>
+  );
+}
+
+// ── Cover letter ──────────────────────────────────────────────────────
+const TONES: CoverLetterTone[] = ["professional", "friendly", "confident", "enthusiastic"];
+const LENGTHS: CoverLetterLength[] = ["short", "standard", "long"];
+function CoverTab({ wsId }: { wsId: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: qk.ws(wsId, "cover"), queryFn: () => api.get<CoverLetter>(`/workspaces/${wsId}/cover-letter`) });
+  const [tone, setTone] = useState<CoverLetterTone | null>(null);
+  const [len, setLen] = useState<CoverLetterLength | null>(null);
+  const regen = useMutation({
+    mutationFn: () => api.post<CoverLetter>(`/workspaces/${wsId}/cover-letter/regenerate`, { tone: tone ?? q.data?.tone, length: len ?? q.data?.length }),
+    onSuccess: (c) => { qc.setQueryData(qk.ws(wsId, "cover"), c); void qc.invalidateQueries({ queryKey: qk.credits }); toast.success("Cover letter regenerated"); },
+    onError: (e) => toastError(e),
+  });
+  return (
+    <Gate q={q}>
+      {(c) => {
+        const t = tone ?? c.tone, l = len ?? c.length;
+        return (
+          <div className="space-y-3">
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4">{TONES.map((x) => <Chip key={x} active={t === x} onClick={() => setTone(x)}>{x}</Chip>)}</div>
+            <div className="flex gap-2">{LENGTHS.map((x) => <Chip key={x} active={l === x} onClick={() => setLen(x)}>{x}</Chip>)}</div>
+            <ActionButton variant="secondary" size="full" disabled={t === c.tone && l === c.length && !regen.isError} loading={regen.isPending} onClick={() => regen.mutate()}>
+              <RefreshCw className="h-4 w-4" /> Regenerate — {COVER_REGEN_COST} credits
+            </ActionButton>
+            <Card>
+              <p className="whitespace-pre-wrap text-base leading-relaxed">{c.content}</p>
+              <p className="caption mt-3">Version {c.version} · {c.wordCount} words</p>
+            </Card>
+            <div className="grid grid-cols-2 gap-2">
+              <ActionButton variant="secondary" onClick={async () => { await copyText(c.content); toast.success("Copied"); }}><Copy className="h-4 w-4" /> Copy</ActionButton>
+              <ActionButton variant="secondary" onClick={async () => { if (!(await shareText("Cover letter", c.content))) { await copyText(c.content); toast.success("Copied (sharing not available)"); } }}><Share2 className="h-4 w-4" /> Share</ActionButton>
+            </div>
+          </div>
+        );
+      }}
+    </Gate>
+  );
+}
+
+// ── Interview ─────────────────────────────────────────────────────────
+function InterviewTab({ wsId }: { wsId: string }) {
+  const q = useQuery({ queryKey: qk.ws(wsId, "interview"), queryFn: () => api.get<InterviewQuestion[]>(`/workspaces/${wsId}/interview-questions`) });
+  return (
+    <Gate q={q}>
+      {(list) => list.length === 0 ? <EmptyState title="No interview questions" /> : (
+        <div className="space-y-3">{list.map((iq) => <QuestionCard key={iq.id} wsId={wsId} iq={iq} />)}</div>
+      )}
+    </Gate>
+  );
+}
+function QuestionCard({ wsId, iq }: { wsId: string; iq: InterviewQuestion }) {
+  const qc = useQueryClient();
+  const [ans, setAns] = useState(iq.userAnswer ?? "");
+  const [ideal, setIdeal] = useState(false);
+  const m = useMutation({
+    mutationFn: () => api.post<InterviewQuestion>(`/interview-questions/${iq.id}/answer`, { answer: ans.trim() }),
+    onSuccess: (r) => {
+      qc.setQueryData<InterviewQuestion[]>(qk.ws(wsId, "interview"), (l) => l?.map((x) => (x.id === r.id ? r : x)));
+      void qc.invalidateQueries({ queryKey: qk.credits });
+      toast.success("Feedback ready");
+    },
+    onError: (e) => toastError(e),
+  });
+  const dTone = iq.difficulty === "easy" ? "success" : iq.difficulty === "medium" ? "warning" : "danger";
+  return (
+    <Collapsible title={<span className="block text-sm font-semibold leading-snug">{iq.question}<span className="mt-1 flex gap-1.5"><Badge>{iq.type.replace("_", " ")}</Badge><Badge tone={dTone}>{iq.difficulty}</Badge></span></span>}>
+      <div className="space-y-3">
+        {iq.whyAsked && <p className="caption"><b>What they're testing:</b> {iq.whyAsked}</p>}
+        {iq.basedOn && <p className="caption italic">Based on your resume: "{iq.basedOn}"</p>}
+        <textarea value={ans} maxLength={5000} onChange={(e) => setAns(e.target.value)} rows={5} placeholder="Type your answer (at least 20 characters)" className="w-full rounded-lg border border-input bg-card p-3 text-base" aria-label="Your answer" />
+        <p className="caption text-right">{ans.trim().length} / 20 min</p>
+        <ActionButton size="full" disabled={ans.trim().length < 20} loading={m.isPending} onClick={() => m.mutate()}>Get feedback — {FEEDBACK_COST} credit</ActionButton>
+        {iq.answerScore != null && (
+          <div className="rounded-lg bg-muted p-3">
+            <p className={cn("font-display text-xl font-bold", iq.answerScore >= 75 ? "text-success" : iq.answerScore >= 50 ? "text-primary" : "text-warning")}>{iq.answerScore}/100</p>
+            {iq.aiFeedback && <p className="body-text mt-1 whitespace-pre-wrap">{iq.aiFeedback}</p>}
+          </div>
+        )}
+        <button className="min-h-11 text-sm font-semibold text-primary" onClick={() => setIdeal((v) => !v)}>{ideal ? "Hide ideal answer" : "Reveal ideal answer"}</button>
+        {ideal && <p className="body-text whitespace-pre-wrap rounded-lg bg-accent p-3">{iq.idealAnswer}</p>}
+      </div>
+    </Collapsible>
+  );
+}
+
+// ── Company / Salary / Learning ───────────────────────────────────────
+function CompanyTab({ wsId }: { wsId: string }) {
+  const q = useQuery({ queryKey: qk.ws(wsId, "company"), queryFn: () => api.get<CompanyInsight>(`/workspaces/${wsId}/company-insight`) });
+  return (
+    <Gate q={q}>
+      {(c) => (
+        <div className="space-y-3">
+          <Card><div className="mb-2 flex items-center justify-between"><h3 className="h3">{c.companyName}</h3><Badge>{c.confidence} confidence</Badge></div><p className="body-text whitespace-pre-wrap">{c.overview}</p></Card>
+          <ListCard title="Culture" items={c.culture} />
+          <ListCard title="Talking points & tips" items={c.talkingPoints} />
+          {c.sources?.length > 0 && (
+            <Card><h3 className="h3 mb-2">Sources</h3>
+              {c.sources.map((s) => <button key={s} onClick={() => void openExternal(s)} className="flex min-h-11 w-full items-center gap-2 break-all text-left text-sm text-primary"><ExternalLink className="h-4 w-4 shrink-0" />{s}</button>)}
+            </Card>
+          )}
+        </div>
+      )}
+    </Gate>
+  );
+}
+
+function SalaryTab({ wsId }: { wsId: string }) {
+  const q = useQuery({ queryKey: qk.ws(wsId, "salary"), queryFn: () => api.get<SalaryEstimate>(`/workspaces/${wsId}/salary-estimate`) });
+  const fmt = (n: number, cur: string) => { try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur, maximumFractionDigits: 0 }).format(n); } catch { return `${n} ${cur}`; } };
+  return (
+    <Gate q={q}>
+      {(s) => {
+        const lo = s.p25 * 0.85, hi = s.p75 * 1.15, pos = (v: number) => ((v - lo) / (hi - lo)) * 100;
+        return (
+          <div className="space-y-3">
+            <Card className="space-y-4">
+              <div className="text-center"><p className="caption">Median estimate</p><p className="font-display text-3xl font-bold text-primary">{fmt(s.p50, s.currency)}</p></div>
+              <div className="relative h-3 rounded-full bg-border/70">
+                <div className="absolute h-3 rounded-full bg-primary/30" style={{ left: `${pos(s.p25)}%`, width: `${pos(s.p75) - pos(s.p25)}%` }} />
+                <div className="absolute -top-1 h-5 w-1.5 rounded bg-primary" style={{ left: `${pos(s.p50)}%` }} />
+              </div>
+              <div className="flex justify-between text-sm"><span>P25 {fmt(s.p25, s.currency)}</span><span>P75 {fmt(s.p75, s.currency)}</span></div>
+              <p className="caption rounded-lg bg-warning/10 p-2 text-center">Estimate only — actual offers vary.</p>
+            </Card>
+            {s.methodology && <Card><h3 className="h3 mb-2">How we estimated</h3><p className="body-text">{s.methodology}</p></Card>}
+            <ListCard title="Factors" items={s.factors} />
+            <ListCard title="Negotiation tips" items={s.negotiationTips} />
+          </div>
+        );
+      }}
+    </Gate>
+  );
+}
+
+function LearningTab({ wsId }: { wsId: string }) {
+  const q = useQuery({ queryKey: qk.ws(wsId, "learning"), queryFn: () => api.get<LearningRoadmap>(`/workspaces/${wsId}/learning-roadmap`) });
+  return (
+    <Gate q={q}>
+      {(r) => r.items.length === 0 ? <EmptyState title="No gaps to learn — nice!" /> : (
+        <ol className="space-y-3">
+          {r.items.map((it, i) => {
+            const url = it.affiliateUrl ?? it.url;
+            return (
+              <Card key={i} className="space-y-1.5">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-primary">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{it.title}</p>
+                    <p className="caption">{it.gapReason}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5"><Badge tone={it.priority === "required" ? "danger" : "primary"}>{it.priority}</Badge><Badge>{it.resourceType}</Badge><Badge>~{it.estHours}h</Badge></div>
+                  </div>
+                </div>
+                {url && <button onClick={() => void openExternal(url)} className="flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"><ExternalLink className="h-4 w-4" /> Open resource</button>}
+              </Card>
+            );
+          })}
+        </ol>
+      )}
+    </Gate>
+  );
+}
+
+export function useIsMounted() {
+  const r = useRef(true);
+  useEffect(() => () => void (r.current = false), []);
+  return r;
+}
