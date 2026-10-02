@@ -1,4 +1,4 @@
-﻿// Static SPA build for Capacitor (Android). Kept separate from vite.config.ts so the
+// Static SPA build for Capacitor (Android). Kept separate from vite.config.ts so the
 // Lovable/Cloudflare SSR build (`npm run build`) is untouched.
 // Output: dist/client/index.html (+ assets/) -> capacitor.config.ts `webDir`.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
