@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BriefcaseBusiness, Plus } from "lucide-react";
 import { qk, useList } from "@/lib/queries";
-import { fmtDate, InfiniteList } from "@/components/app";
-import { Card, EmptyState } from "@/components/ui/tp";
+import { flat, fmtDate, InfiniteList } from "@/components/app";
+import { Button, Card, EmptyState } from "@/components/ui/tp";
 import { JobStatusBadge } from "@/lib/resumeUi";
 import { displayPosition } from "@/components/GlobalSheets";
 import type { JobDescription } from "@/types/api";
@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_app/jobs/")({
 
 function JobsPage() {
   const q = useList<JobDescription>(qk.jobs, "/job-descriptions");
+  const items = flat(q.data);
   return (
     <div>
       <InfiniteList
@@ -46,12 +47,13 @@ function JobsPage() {
           </Link>
         )}
       />
-      <Link
-        to="/jobs/new"
-        className="fixed bottom-24 right-4 z-20 inline-flex h-14 items-center gap-2 rounded-full bg-primary px-5 font-semibold text-primary-foreground shadow-lg sm:right-[calc(50%-15rem)]"
-      >
-        <Plus className="h-5 w-5" /> Add job
-      </Link>
+      {!q.isPending && items.length > 0 && (
+        <Button asChild={undefined} className="fab-bottom fixed right-4 z-20 h-14 rounded-full px-0 shadow-lg sm:right-[calc(50%-15rem)]">
+          <Link to="/jobs/new" className="inline-flex h-full items-center gap-2 px-5">
+            <Plus className="h-5 w-5" /> Add job
+          </Link>
+        </Button>
+      )}
     </div>
   );
 }

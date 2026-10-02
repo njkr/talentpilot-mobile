@@ -27,6 +27,8 @@ const TITLES: Record<string, string> = {
   "/me": "Me",
 };
 
+const TAB_ROOTS = new Set(["/", "/resumes", "/jobs", "/analyses", "/me"]);
+
 /** Compacts large balances for the top bar pill, e.g. 12.3k. */
 const fmtBalance = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : n.toLocaleString());
 
@@ -48,10 +50,11 @@ function Shell() {
   });
   const count = unread.data?.count ?? 0;
   const title = TITLES[pathname];
+  const showTopBar = TAB_ROOTS.has(pathname);
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
-      <header className="pt-safe sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
+      {showTopBar && <header className="pt-safe sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
         <div className="flex h-14 items-center justify-between px-4">
           {title ? <h1 className="h2">{title}</h1> : <Logo size={28} />}
           <div className="flex items-center gap-1">
@@ -77,9 +80,9 @@ function Shell() {
             </Link>
           </div>
         </div>
-      </header>
+      </header>}
 
-      <main className="flex-1 px-4 pb-28 pt-4">
+      <main className="app-scroll-bottom flex-1 px-4 pt-4">
         <Outlet />
       </main>
       <UpgradeSheet />
@@ -95,7 +98,7 @@ function Shell() {
                 <Link
                   to={t.to}
                   className={cn(
-                    "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium",
+                    "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >

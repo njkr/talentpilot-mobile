@@ -8,7 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import { qk, useList } from "@/lib/queries";
 import { toastError } from "@/lib/errors";
 import { useOnline } from "@/lib/stores";
-import { ActionButton, ActionSheet, ConfirmSheet, fmtDate, InfiniteList, ProgressBar } from "@/components/app";
+import { ActionButton, ActionSheet, ConfirmSheet, flat, fmtDate, InfiniteList, ProgressBar } from "@/components/app";
 import { BottomSheet, Button, Card, EmptyState, Input } from "@/components/ui/tp";
 import { FILE_ACCEPT, precheckFile, ResumeStatusBadge, UPLOAD_ERRORS, uploadErrorMsg } from "@/lib/resumeUi";
 import type { Resume, ResumeInUseDetails } from "@/types/api";
@@ -38,6 +38,7 @@ function ResumesPage() {
   const [del, setDel] = useState<Resume | null>(null);
   const [inUse, setInUse] = useState<ResumeInUseDetails["workspaces"] | null>(null);
   const online = useOnline();
+  const items = flat(q.data);
   const inval = () => {
     void qc.invalidateQueries({ queryKey: qk.resumes });
     void qc.invalidateQueries({ queryKey: qk.dashboard });
@@ -130,7 +131,7 @@ function ResumesPage() {
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{r.title}</span>
                 <span className="caption block">
-                  {r.pageCount ?? "–"} pages · {r.wordCount ?? "–"} words · {fmtDate(r.createdAt)}
+                  {r.pageCount ?? "–"} {r.pageCount === 1 ? "page" : "pages"} · {r.wordCount ?? "–"} words · {fmtDate(r.createdAt)}
                 </span>
                 <span className="mt-1 block"><ResumeStatusBadge s={r.status} /></span>
               </span>
@@ -147,13 +148,15 @@ function ResumesPage() {
         )}
       />
 
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={upload.isPending || !online}
-        className="fixed bottom-24 right-4 z-20 inline-flex h-14 items-center gap-2 rounded-full bg-primary px-5 font-semibold text-primary-foreground shadow-lg disabled:opacity-50 sm:right-[calc(50%-15rem)]"
-      >
-        <Upload className="h-5 w-5" /> Upload
-      </button>
+      {!q.isPending && items.length > 0 && (
+        <Button
+          onClick={() => fileRef.current?.click()}
+          disabled={upload.isPending || !online}
+          className="fab-bottom fixed right-4 z-20 h-14 rounded-full px-5 shadow-lg sm:right-[calc(50%-15rem)]"
+        >
+          <Upload className="h-5 w-5" /> Upload
+        </Button>
+      )}
 
       <BottomSheet open={!!rename} onClose={() => setRename(null)} title="Rename resume">
         <div className="space-y-3">

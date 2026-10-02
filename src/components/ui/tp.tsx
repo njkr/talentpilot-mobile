@@ -94,7 +94,7 @@ export function Card({ className, children, ...p }: HTMLAttributes<HTMLDivElemen
 }
 
 // ── Badge ──────────────────────────────────────────────────────────────
-const badgeVariants = cva("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium", {
+const badgeVariants = cva("inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium", {
   variants: {
     tone: {
       primary: "bg-primary/10 text-primary",
