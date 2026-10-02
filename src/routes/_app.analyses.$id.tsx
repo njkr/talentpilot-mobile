@@ -8,7 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import { qk, ANALYZE_COST } from "@/lib/queries";
 import { handleUpgradeError, toastError } from "@/lib/errors";
 import { openUpgrade } from "@/lib/stores";
-import { ActionButton, ActionSheet, CardSkeletons, ConfirmSheet, ErrorState, PageHeader } from "@/components/app";
+import { ActionButton, ActionSheet, CardSkeletons, ConfirmSheet, ErrorState, fmtDate, PageHeader } from "@/components/app";
 import { Card } from "@/components/ui/tp";
 import { FailedView, ProgressView } from "@/components/analysis/Progress";
 import { Results, TABS, type Tab } from "@/components/analysis/Results";
@@ -38,6 +38,7 @@ function AnalysisDetail() {
   const qc = useQueryClient();
   const [del, setDel] = useState(false);
   const ws = useQuery({ queryKey: qk.workspace(id), queryFn: () => api.get<Workspace>(`/workspaces/${id}`) });
+  const resume = useQuery({ queryKey: qk.resume(ws.data?.resumeId ?? ""), queryFn: () => api.get<Resume>(`/resumes/${ws.data?.resumeId}`), enabled: !!ws.data?.resumeId });
   const runId = search.run ?? ws.data?.lastRunId ?? null;
   const run = useQuery({ queryKey: qk.run(runId ?? ""), queryFn: () => api.get<Run>(`/workspaces/runs/${runId}`), enabled: !!runId });
   const setSearch = (s: { tab?: Tab | undefined; run?: string | undefined }) => void nav({ to: "/analyses/$id", params: { id }, search: s, replace: true });
@@ -63,9 +64,9 @@ function AnalysisDetail() {
   else if (run.isError) body = <ErrorState error={run.error} onRetry={() => void run.refetch()} />;
   else if (active(run.data.status))
     body = <ProgressView workspaceId={id} runId={run.data.id} initial={run.data} onDone={() => void run.refetch()} />;
-  else if (run.data.status === "completed") body = <Results wsId={id} tab={search.tab ?? "report"} setTab={(t) => setSearch({ tab: t, run: search.run })} />;
+  else if (run.data.status === "completed") body = <Results wsId={id} resumeId={w.resumeId} tab={search.tab ?? "report"} setTab={(t) => setSearch({ tab: t, run: search.run })} />;
   else if (run.data.status === "partial" && search.tab)
-    body = <Results wsId={id} tab={search.tab} setTab={(t) => setSearch({ tab: t, run: search.run })} />;
+    body = <Results wsId={id} resumeId={w.resumeId} tab={search.tab} setTab={(t) => setSearch({ tab: t, run: search.run })} />;
   else
     body = (
       <FailedView
@@ -81,7 +82,7 @@ function AnalysisDetail() {
         title={w.name}
         right={<ActionSheet title="Analysis" actions={[{ label: "Delete analysis", danger: true, icon: <Trash2 className="h-5 w-5" />, onSelect: () => setDel(true) }]} />}
       />
-      <div className="-mt-2"><WsStatusBadge s={w.status} /></div>
+      <div className="-mt-2 flex min-w-0 items-center gap-2"><WsStatusBadge s={w.status} /><span className="caption truncate">{resume.data?.title ?? "Resume"} · {fmtDate(w.createdAt)}</span></div>
       {body}
       <ConfirmSheet open={del} onClose={() => setDel(false)} title="Delete this analysis?" body="Its report, suggestions and other results will be removed." confirmLabel="Delete" danger loading={remove.isPending} onConfirm={() => remove.mutate()} />
     </div>

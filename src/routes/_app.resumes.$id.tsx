@@ -78,10 +78,16 @@ function ResumeDetail() {
 
   return (
     <div className="space-y-3">
-      <PageHeader title={r.title} />
+      <PageHeader
+        title={r.title}
+        right={<ActionSheet title="Resume" actions={[
+          { label: "Use in new analysis", icon: <Sparkles className="h-5 w-5" />, onSelect: () => openNewAnalysis({ resumeId: id }) },
+          { label: "Retry parsing", icon: <RotateCw className="h-5 w-5" />, hidden: r.status !== "failed", onSelect: () => retry.mutate() },
+        ]} />}
+      />
       <Card className="flex items-center justify-between">
         <div className="caption space-y-0.5">
-          <p>{r.pageCount ?? "–"} pages · {r.wordCount ?? "–"} words</p>
+          <p>{r.pageCount ?? "–"} {r.pageCount === 1 ? "page" : "pages"} · {r.wordCount ?? "–"} words</p>
           <p>{(r.fileSize / 1024).toFixed(0)} KB · {r.language?.toUpperCase() ?? "—"} · {fmtDate(r.createdAt)}</p>
         </div>
         <ResumeStatusBadge s={r.status} />
