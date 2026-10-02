@@ -2,6 +2,7 @@ import { forwardRef, useEffect, type HTMLAttributes, type ButtonHTMLAttributes, 
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
 import { pushSheet } from "@/lib/stores";
 
 // ── Logo ───────────────────────────────────────────────────────────────
@@ -112,7 +113,7 @@ export function Badge({ tone, className, children }: VariantProps<typeof badgeVa
 
 // ── Skeleton ───────────────────────────────────────────────────────────
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-lg bg-border/70", className)} />;
+  return <div className={cn("tp-shimmer rounded-lg", className)} />;
 }
 
 // ── EmptyState ─────────────────────────────────────────────────────────
@@ -159,11 +160,18 @@ export function BottomSheet({
       pop();
     };
   }, [open, onClose]);
-  if (!open) return null;
   return (
+    <AnimatePresence>
+    {open && (
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
-      <button aria-label="Close" className="absolute inset-0 bg-overlay animate-in fade-in" onClick={onClose} />
-      <div className="animate-sheet-up pb-safe relative w-full max-w-lg rounded-t-2xl bg-card shadow-[var(--shadow-sheet)]">
+      <motion.button aria-label="Close" className="absolute inset-0 bg-overlay" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
+      <motion.div
+        className="pb-safe relative w-full max-w-lg rounded-t-2xl bg-card shadow-[var(--shadow-sheet)]"
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", stiffness: 400, damping: 35 }}
+      >
         <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-border" />
         <div className="flex items-center justify-between px-4 pt-3">
           <h2 className="h3">{title}</h2>
@@ -172,8 +180,10 @@ export function BottomSheet({
           </Button>
         </div>
         <div className="max-h-[75vh] overflow-y-auto px-4 pb-6">{children}</div>
-      </div>
+      </motion.div>
     </div>
+    )}
+    </AnimatePresence>
   );
 }
 

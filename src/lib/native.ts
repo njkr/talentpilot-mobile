@@ -133,8 +133,7 @@ export async function initNativeChrome() {
     /* not supported */
   }
   try {
-    const { SplashScreen } = await import("@capacitor/splash-screen");
-    await SplashScreen.hide();
+    /* splash is hidden by LaunchScreen once it has mounted */
   } catch {
     /* ignore */
   }

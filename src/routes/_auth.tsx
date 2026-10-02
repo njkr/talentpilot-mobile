@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
-import { Logo, Splash } from "@/components/ui/tp";
+import { Logo } from "@/components/ui/tp";
+import { LaunchScreen, useLaunchGate } from "@/components/motion";
 
 export const Route = createFileRoute("/_auth")({
   component: AuthLayout,
@@ -9,7 +10,8 @@ export const Route = createFileRoute("/_auth")({
 /** RedirectIfAuthed + auth stack chrome (no tabs). */
 function AuthLayout() {
   const { status } = useAuth();
-  if (status === "loading") return <Splash />;
+  const phase = useLaunchGate(status === "loading");
+  if (phase !== "done") return <LaunchScreen phase={phase} />;
   if (status === "authed") return <Navigate to="/" replace />;
   return (
     <div className="pt-safe pb-safe mx-auto flex min-h-dvh w-full max-w-md flex-col px-5">
