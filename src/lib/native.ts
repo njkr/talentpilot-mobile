@@ -138,3 +138,23 @@ export async function initNativeChrome() {
     /* ignore */
   }
 }
+
+export type HapticKind = "light" | "success" | "warning" | "error";
+/** Haptic feedback via @capacitor/haptics. No-op on web. Never throws. */
+export function haptic(kind: HapticKind = "light") {
+  if (!isNative()) return;
+  void import("@capacitor/haptics")
+    .then(({ Haptics, ImpactStyle, NotificationType }) =>
+      kind === "light"
+        ? Haptics.impact({ style: ImpactStyle.Light })
+        : Haptics.notification({
+            type:
+              kind === "success"
+                ? NotificationType.Success
+                : kind === "warning"
+                  ? NotificationType.Warning
+                  : NotificationType.Error,
+          }),
+    )
+    .catch(() => undefined);
+}
