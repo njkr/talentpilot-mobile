@@ -42,6 +42,9 @@ type AuthCtx = {
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
+/** Exposed for tests that need to render consumers in a specific auth state. */
+export const AuthContext = Ctx;
+export type { AuthCtx };
 
 export const isFatalAuthError = (e: unknown) =>
   e instanceof ApiError &&
@@ -172,6 +175,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [status, user, offline, retry, signIn, signOut],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/** Like useAuth, but returns null outside the provider (e.g. mid hot-reload) instead of throwing. */
+export function useAuthOptional() {
+  return useContext(Ctx);
 }
 
 export function useAuth() {
