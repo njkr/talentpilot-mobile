@@ -19,7 +19,9 @@ const resolve = (c: ThemeChoice) => (c === "system" ? (media().matches ? "dark" 
 function apply() {
   const dark = resolve(read()) === "dark";
   document.documentElement.classList.toggle("dark", dark);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#121826" : "#ffffff");
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute("content", dark ? "#0e121a" : "#ffffff");
   listeners.forEach((l) => l());
 }
 

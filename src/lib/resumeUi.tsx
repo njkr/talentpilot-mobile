@@ -25,16 +25,31 @@ export const WS_LABEL: Record<WorkspaceStatus, string> = {
   failed: "Failed",
 };
 export function WsStatusBadge({ s }: { s: WorkspaceStatus }) {
-  const tone = s === "completed" ? "success" : s === "failed" ? "danger" : s === "partial" ? "warning" : s === "created" ? "neutral" : "primary";
+  const tone =
+    s === "completed"
+      ? "success"
+      : s === "failed"
+        ? "danger"
+        : s === "partial"
+          ? "warning"
+          : s === "created"
+            ? "neutral"
+            : "primary";
   return <Badge tone={tone}>{WS_LABEL[s] ?? s}</Badge>;
 }
 
 export const MAX_UPLOAD = 10 * 1024 * 1024;
-export const FILE_ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+export const FILE_ACCEPT =
+  ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export function precheckFile(f: File): string | null {
   if (f.size > MAX_UPLOAD) return "Max 10MB";
-  const ok = /\.(pdf|docx)$/i.test(f.name) || ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(f.type);
+  const ok =
+    /\.(pdf|docx)$/i.test(f.name) ||
+    [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ].includes(f.type);
   return ok ? null : "PDF or DOCX only";
 }
 
@@ -48,6 +63,7 @@ export const UPLOAD_ERRORS: Record<string, string> = {
 };
 
 export function uploadErrorMsg(e: unknown) {
-  if (e instanceof ApiError && e.code === "FILE_TOO_LARGE" && e.details?.["maxMb"]) return `Max ${String(e.details["maxMb"])}MB`;
+  if (e instanceof ApiError && e.code === "FILE_TOO_LARGE" && e.details?.["maxMb"])
+    return `Max ${String(e.details["maxMb"])}MB`;
   return null;
 }

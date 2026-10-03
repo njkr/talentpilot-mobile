@@ -15,9 +15,15 @@ export const Route = createFileRoute("/_app/security")({
   head: () => ({
     meta: [
       { title: "Security — TalentPilot" },
-      { name: "description", content: "See and sign out devices that are signed in to your account." },
+      {
+        name: "description",
+        content: "See and sign out devices that are signed in to your account.",
+      },
       { property: "og:title", content: "Security — TalentPilot" },
-      { property: "og:description", content: "See and sign out devices that are signed in to your account." },
+      {
+        property: "og:description",
+        content: "See and sign out devices that are signed in to your account.",
+      },
     ],
   }),
   component: SecurityPage,
@@ -27,13 +33,30 @@ function device(ua: string | null) {
   if (!ua) return "Unknown device";
   if (/android/i.test(ua)) return "Android";
   if (/iphone|ipad/i.test(ua)) return "iPhone / iPad";
-  const b = /edg/i.test(ua) ? "Edge" : /chrome/i.test(ua) ? "Chrome" : /firefox/i.test(ua) ? "Firefox" : /safari/i.test(ua) ? "Safari" : "Browser";
-  const os = /windows/i.test(ua) ? "Windows" : /mac os/i.test(ua) ? "macOS" : /linux/i.test(ua) ? "Linux" : "";
+  const b = /edg/i.test(ua)
+    ? "Edge"
+    : /chrome/i.test(ua)
+      ? "Chrome"
+      : /firefox/i.test(ua)
+        ? "Firefox"
+        : /safari/i.test(ua)
+          ? "Safari"
+          : "Browser";
+  const os = /windows/i.test(ua)
+    ? "Windows"
+    : /mac os/i.test(ua)
+      ? "macOS"
+      : /linux/i.test(ua)
+        ? "Linux"
+        : "";
   return os ? `${b} on ${os}` : b;
 }
 
 function SecurityPage() {
-  const q = useQuery({ queryKey: qk.sessions, queryFn: () => api.get<SessionInfo[]>("/auth/sessions") });
+  const q = useQuery({
+    queryKey: qk.sessions,
+    queryFn: () => api.get<SessionInfo[]>("/auth/sessions"),
+  });
   const qc = useQueryClient();
   const { signOut } = useAuth();
   const [target, setTarget] = useState<SessionInfo | null>(null);
@@ -69,10 +92,15 @@ function SecurityPage() {
           const mobile = /android|iphone|ipad/i.test(s.userAgent ?? "");
           return (
             <Card key={s.familyId} className="flex items-center gap-3">
-              {mobile ? <Smartphone className="h-6 w-6 text-muted-foreground" /> : <Monitor className="h-6 w-6 text-muted-foreground" />}
+              {mobile ? (
+                <Smartphone className="h-6 w-6 text-muted-foreground" />
+              ) : (
+                <Monitor className="h-6 w-6 text-muted-foreground" />
+              )}
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2 font-semibold">
-                  {device(s.userAgent)} {s.familyId === currentId && <Badge tone="primary">This device</Badge>}
+                  {device(s.userAgent)}{" "}
+                  {s.familyId === currentId && <Badge tone="primary">This device</Badge>}
                 </p>
                 <p className="caption">{s.ip ?? "Unknown IP"}</p>
                 <p className="caption">Signed in {fmtDateTime(s.createdAt)}</p>
@@ -88,7 +116,11 @@ function SecurityPage() {
         open={!!target}
         onClose={() => setTarget(null)}
         title="Sign out this device?"
-        body={target?.familyId === currentId ? "This is the device you're using now — you'll be signed out." : "That device will need to sign in again."}
+        body={
+          target?.familyId === currentId
+            ? "This is the device you're using now — you'll be signed out."
+            : "That device will need to sign in again."
+        }
         confirmLabel="Revoke"
         danger
         loading={revoke.isPending}

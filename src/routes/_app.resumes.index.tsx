@@ -8,9 +8,23 @@ import { api, ApiError } from "@/lib/api";
 import { qk, useList } from "@/lib/queries";
 import { toastError } from "@/lib/errors";
 import { useOnline } from "@/lib/stores";
-import { ActionButton, ActionSheet, ConfirmSheet, flat, fmtDate, InfiniteList, ProgressBar } from "@/components/app";
+import {
+  ActionButton,
+  ActionSheet,
+  ConfirmSheet,
+  flat,
+  fmtDate,
+  InfiniteList,
+  ProgressBar,
+} from "@/components/app";
 import { BottomSheet, Button, Card, EmptyState, Input } from "@/components/ui/tp";
-import { FILE_ACCEPT, precheckFile, ResumeStatusBadge, UPLOAD_ERRORS, uploadErrorMsg } from "@/lib/resumeUi";
+import {
+  FILE_ACCEPT,
+  precheckFile,
+  ResumeStatusBadge,
+  UPLOAD_ERRORS,
+  uploadErrorMsg,
+} from "@/lib/resumeUi";
 import type { Resume, ResumeInUseDetails } from "@/types/api";
 
 export const Route = createFileRoute("/_app/resumes/")({
@@ -58,7 +72,10 @@ function ResumesPage() {
     },
     onError: (e) => {
       setProgress(null);
-      toastError(e, { ...UPLOAD_ERRORS, ...(uploadErrorMsg(e) ? { FILE_TOO_LARGE: uploadErrorMsg(e)! } : {}) });
+      toastError(e, {
+        ...UPLOAD_ERRORS,
+        ...(uploadErrorMsg(e) ? { FILE_TOO_LARGE: uploadErrorMsg(e)! } : {}),
+      });
     },
   });
   const doRename = useMutation({
@@ -99,14 +116,26 @@ function ResumesPage() {
   const pick = (f: File | undefined) => {
     if (!f) return;
     const bad = precheckFile(f);
-    if (bad) { toast.error(bad); return; }
+    if (bad) {
+      toast.error(bad);
+      return;
+    }
     setProgress(0);
     upload.mutate(f);
   };
 
   return (
     <div>
-      <input ref={fileRef} type="file" accept={FILE_ACCEPT} className="hidden" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />
+      <input
+        ref={fileRef}
+        type="file"
+        accept={FILE_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          pick(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
       {progress != null && (
         <Card className="mb-3 space-y-2">
           <p className="text-sm font-medium">Uploading… {progress}%</p>
@@ -115,33 +144,69 @@ function ResumesPage() {
       )}
       <InfiniteList
         q={q}
-        skeleton={<div className="space-y-3">{[0, 1, 2, 3].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-border/70" />)}</div>}
+        skeleton={
+          <div className="space-y-3">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-24 animate-pulse rounded-xl bg-border/70" />
+            ))}
+          </div>
+        }
         empty={
           <EmptyState
             icon={<FileText className="h-7 w-7" />}
             title="No resumes yet"
             description="Upload a PDF or DOCX (max 10MB) to get started."
-            action={<Button onClick={() => fileRef.current?.click()} disabled={!online}><Upload className="h-4 w-4" /> Upload resume</Button>}
+            action={
+              <Button onClick={() => fileRef.current?.click()} disabled={!online}>
+                <Upload className="h-4 w-4" /> Upload resume
+              </Button>
+            }
           />
         }
         render={(r) => (
           <Card key={r.id} className="flex min-h-14 items-center gap-3 p-3">
-            <Link to="/resumes/$id" params={{ id: r.id }} className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary"><FileText className="h-5 w-5" /></span>
+            <Link
+              to="/resumes/$id"
+              params={{ id: r.id }}
+              className="flex min-w-0 flex-1 items-center gap-3"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
+                <FileText className="h-5 w-5" />
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{r.title}</span>
                 <span className="caption block">
-                  {r.pageCount ?? "–"} {r.pageCount === 1 ? "page" : "pages"} · {r.wordCount ?? "–"} words · {fmtDate(r.createdAt)}
+                  {r.pageCount ?? "–"} {r.pageCount === 1 ? "page" : "pages"} · {r.wordCount ?? "–"}{" "}
+                  words · {fmtDate(r.createdAt)}
                 </span>
-                <span className="mt-1 block"><ResumeStatusBadge s={r.status} /></span>
+                <span className="mt-1 block">
+                  <ResumeStatusBadge s={r.status} />
+                </span>
               </span>
             </Link>
             <ActionSheet
               title={r.title}
               actions={[
-                { label: "Rename", icon: <Pencil className="h-5 w-5" />, onSelect: () => { setTitle(r.title); setRename(r); } },
-                { label: "Retry parsing", icon: <RotateCw className="h-5 w-5" />, hidden: r.status !== "failed", onSelect: () => retry.mutate(r) },
-                { label: "Delete", icon: <Trash2 className="h-5 w-5" />, danger: true, onSelect: () => setDel(r) },
+                {
+                  label: "Rename",
+                  icon: <Pencil className="h-5 w-5" />,
+                  onSelect: () => {
+                    setTitle(r.title);
+                    setRename(r);
+                  },
+                },
+                {
+                  label: "Retry parsing",
+                  icon: <RotateCw className="h-5 w-5" />,
+                  hidden: r.status !== "failed",
+                  onSelect: () => retry.mutate(r),
+                },
+                {
+                  label: "Delete",
+                  icon: <Trash2 className="h-5 w-5" />,
+                  danger: true,
+                  onSelect: () => setDel(r),
+                },
               ]}
             />
           </Card>
@@ -160,8 +225,21 @@ function ResumesPage() {
 
       <BottomSheet open={!!rename} onClose={() => setRename(null)} title="Rename resume">
         <div className="space-y-3">
-          <Input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} aria-label="Title" autoFocus />
-          <ActionButton size="full" disabled={!title.trim()} loading={doRename.isPending} onClick={() => doRename.mutate()}>Save</ActionButton>
+          <Input
+            value={title}
+            maxLength={200}
+            onChange={(e) => setTitle(e.target.value)}
+            aria-label="Title"
+            autoFocus
+          />
+          <ActionButton
+            size="full"
+            disabled={!title.trim()}
+            loading={doRename.isPending}
+            onClick={() => doRename.mutate()}
+          >
+            Save
+          </ActionButton>
         </div>
       </BottomSheet>
       <ConfirmSheet
@@ -175,11 +253,18 @@ function ResumesPage() {
         onConfirm={() => del && doDelete.mutate(del)}
       />
       <BottomSheet open={!!inUse} onClose={() => setInUse(null)} title="Resume in use">
-        <p className="body-text">This resume is used by these analyses. Delete them first, then try again.</p>
+        <p className="body-text">
+          This resume is used by these analyses. Delete them first, then try again.
+        </p>
         <ul className="mt-3 space-y-2">
           {inUse?.map((w) => (
             <li key={w.id}>
-              <Link to="/analyses/$id" params={{ id: w.id }} onClick={() => setInUse(null)} className="flex min-h-11 items-center rounded-lg bg-muted px-3 font-medium">
+              <Link
+                to="/analyses/$id"
+                params={{ id: w.id }}
+                onClick={() => setInUse(null)}
+                className="flex min-h-11 items-center rounded-lg bg-muted px-3 font-medium"
+              >
                 {w.name}
               </Link>
             </li>

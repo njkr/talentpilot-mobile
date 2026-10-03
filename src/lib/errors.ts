@@ -40,7 +40,11 @@ const num = (v: unknown) => (typeof v === "number" ? v : v == null ? undefined :
 export function handleUpgradeError(e: unknown): boolean {
   if (!(e instanceof ApiError)) return false;
   if (e.code === "INSUFFICIENT_CREDITS") {
-    openUpgrade({ kind: "credits", required: num(e.details?.["required"]), balance: num(e.details?.["balance"]) });
+    openUpgrade({
+      kind: "credits",
+      required: num(e.details?.["required"]),
+      balance: num(e.details?.["balance"]),
+    });
     return true;
   }
   if (e.code === "PLAN_LIMIT_REACHED") {
@@ -48,7 +52,8 @@ export function handleUpgradeError(e: unknown): boolean {
       kind: "limit",
       limit: num(e.details?.["limit"]),
       current: num(e.details?.["current"]),
-      feature: typeof e.details?.["feature"] === "string" ? (e.details["feature"] as string) : undefined,
+      feature:
+        typeof e.details?.["feature"] === "string" ? (e.details["feature"] as string) : undefined,
     });
     return true;
   }

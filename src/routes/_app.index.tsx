@@ -2,10 +2,24 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { CountUp } from "@/components/motion";
 import { useQuery } from "@tanstack/react-query";
 import { Line, LineChart, ResponsiveContainer } from "recharts";
-import { AlertTriangle, ChevronRight, FileText, Sparkles, Upload, UserRound, Zap } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronRight,
+  FileText,
+  Sparkles,
+  Upload,
+  UserRound,
+  Zap,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { qk } from "@/lib/queries";
-import { AnalysisSubtitle, CardSkeletons, ErrorState, PullToRefresh, scoreText } from "@/components/app";
+import {
+  AnalysisSubtitle,
+  CardSkeletons,
+  ErrorState,
+  PullToRefresh,
+  scoreText,
+} from "@/components/app";
 import { Badge, Button, Card, EmptyState } from "@/components/ui/tp";
 import { cn } from "@/lib/utils";
 import type { DashboardOverview } from "@/types/api";
@@ -14,9 +28,15 @@ export const Route = createFileRoute("/_app/")({
   head: () => ({
     meta: [
       { title: "Home — TalentPilot" },
-      { name: "description", content: "Your TalentPilot dashboard: credits, scores and recent analyses." },
+      {
+        name: "description",
+        content: "Your TalentPilot dashboard: credits, scores and recent analyses.",
+      },
       { property: "og:title", content: "Home — TalentPilot" },
-      { property: "og:description", content: "Your TalentPilot dashboard: credits, scores and recent analyses." },
+      {
+        property: "og:description",
+        content: "Your TalentPilot dashboard: credits, scores and recent analyses.",
+      },
     ],
   }),
   component: HomePage,
@@ -28,14 +48,19 @@ type Item = DashboardOverview["actionItems"][number];
 const wsIdFrom = (href: string) => href.match(/\/workspaces\/([0-9a-f-]{36})/i)?.[1];
 
 function HomePage() {
-  const q = useQuery({ queryKey: qk.dashboard, queryFn: () => api.get<DashboardOverview>("/dashboard") });
+  const q = useQuery({
+    queryKey: qk.dashboard,
+    queryFn: () => api.get<DashboardOverview>("/dashboard"),
+  });
   const nav = useNavigate();
 
   const go = (it: Item) => {
     const id = it.workspaceId ?? wsIdFrom(it.href);
     switch (it.kind) {
       case "failed_run":
-        return id ? nav({ to: "/analyses/$id", params: { id } }) : nav({ to: "/analyses", search: { filter: "failed" } });
+        return id
+          ? nav({ to: "/analyses/$id", params: { id } })
+          : nav({ to: "/analyses", search: { filter: "failed" } });
       case "pending_suggestions":
         return id
           ? nav({ to: "/analyses/$id", params: { id }, search: { tab: "suggestions" } })
@@ -95,10 +120,22 @@ function HomePage() {
                 <span
                   className={cn(
                     "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                    it.priority === "high" ? "bg-destructive/10 text-destructive" : it.priority === "medium" ? "bg-warning/10 text-warning" : "bg-accent text-primary",
+                    it.priority === "high"
+                      ? "bg-destructive/10 text-destructive"
+                      : it.priority === "medium"
+                        ? "bg-warning/10 text-warning"
+                        : "bg-accent text-primary",
                   )}
                 >
-                  {it.kind === "low_credits" ? <Zap className="h-5 w-5" /> : it.kind === "incomplete_profile" ? <UserRound className="h-5 w-5" /> : it.kind === "failed_run" ? <AlertTriangle className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
+                  {it.kind === "low_credits" ? (
+                    <Zap className="h-5 w-5" />
+                  ) : it.kind === "incomplete_profile" ? (
+                    <UserRound className="h-5 w-5" />
+                  ) : it.kind === "failed_run" ? (
+                    <AlertTriangle className="h-5 w-5" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" />
+                  )}
                 </span>
                 <span className="flex-1 text-sm font-medium">{it.label}</span>
                 <ChevronRight className="h-4 w-4 text-subtle" />
@@ -110,14 +147,23 @@ function HomePage() {
         <div className="grid grid-cols-2 gap-3">
           <Card>
             <p className="caption">Credits</p>
-            <p className="font-display text-2xl font-bold"><CountUp value={d.creditInsight.balance} /></p>
+            <p className="font-display text-2xl font-bold">
+              <CountUp value={d.creditInsight.balance} />
+            </p>
             <p className="caption mt-1">~{d.creditInsight.runsRemaining} analyses left</p>
-            {(d.creditInsight.spentLast30Days > 0 || d.creditInsight.grantedLast30Days > 0) ? (
+            {d.creditInsight.spentLast30Days > 0 || d.creditInsight.grantedLast30Days > 0 ? (
               <p className="caption">
                 {[
-                  d.creditInsight.spentLast30Days > 0 ? `−${d.creditInsight.spentLast30Days}` : null,
-                  d.creditInsight.grantedLast30Days > 0 ? `+${d.creditInsight.grantedLast30Days}` : null,
-                ].filter(Boolean).join(" / ")} · last 30 days
+                  d.creditInsight.spentLast30Days > 0
+                    ? `−${d.creditInsight.spentLast30Days}`
+                    : null,
+                  d.creditInsight.grantedLast30Days > 0
+                    ? `+${d.creditInsight.grantedLast30Days}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" / ")}{" "}
+                · last 30 days
               </p>
             ) : (
               <p className="caption">No credit activity in the last 30 days</p>
@@ -125,7 +171,12 @@ function HomePage() {
           </Card>
           <Card>
             <p className="caption">Score trend</p>
-            <p className={cn("font-display text-2xl font-bold", d.scoreInsight.latestScore != null && scoreText(d.scoreInsight.latestScore))}>
+            <p
+              className={cn(
+                "font-display text-2xl font-bold",
+                d.scoreInsight.latestScore != null && scoreText(d.scoreInsight.latestScore),
+              )}
+            >
               {d.scoreInsight.latestScore ?? "—"}
             </p>
             {d.scoreInsight.trend.length > 1 ? (
@@ -133,11 +184,22 @@ function HomePage() {
                 <div className="h-12">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={d.scoreInsight.trend}>
-                      <Line type="monotone" dataKey="score" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                      <Line
+                        type="monotone"
+                        dataKey="score"
+                        stroke="var(--primary)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="caption mt-1">Best {d.scoreInsight.bestScore ?? "—"} · Avg {d.scoreInsight.averageScore != null ? Math.round(d.scoreInsight.averageScore) : "—"}</p>
+                <p className="caption mt-1">
+                  Best {d.scoreInsight.bestScore ?? "—"} · Avg{" "}
+                  {d.scoreInsight.averageScore != null
+                    ? Math.round(d.scoreInsight.averageScore)
+                    : "—"}
+                </p>
               </>
             ) : (
               <p className="caption mt-1">Run more analyses to see your trend</p>
@@ -150,7 +212,15 @@ function HomePage() {
                 {(() => {
                   const max = Math.max(1, ...d.activity.map((a) => a.runs));
                   return d.activity.map((a) => (
-                    <div key={a.date} title={`${a.date}: ${a.runs}`} className="flex-1 rounded-sm bg-primary/80" style={{ height: `${Math.max(6, (a.runs / max) * 100)}%`, opacity: a.runs ? 1 : 0.2 }} />
+                    <div
+                      key={a.date}
+                      title={`${a.date}: ${a.runs}`}
+                      className="flex-1 rounded-sm bg-primary/80"
+                      style={{
+                        height: `${Math.max(6, (a.runs / max) * 100)}%`,
+                        opacity: a.runs ? 1 : 0.2,
+                      }}
+                    />
                   ));
                 })()}
               </div>
@@ -167,7 +237,8 @@ function HomePage() {
                 <b>{d.workspaces.total}</b> analyses
               </p>
               <p className="caption">
-                {d.workspaces.completed} done · {d.workspaces.processing} running · {d.workspaces.failed} failed
+                {d.workspaces.completed} done · {d.workspaces.processing} running ·{" "}
+                {d.workspaces.failed} failed
               </p>
             </div>
           </Card>
@@ -176,7 +247,10 @@ function HomePage() {
         <section>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="h3">Recent analyses</h2>
-            <Link to="/analyses" className="inline-flex min-h-11 items-center text-sm font-semibold text-primary">
+            <Link
+              to="/analyses"
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+            >
               See all
             </Link>
           </div>
@@ -197,7 +271,11 @@ function HomePage() {
                     <span className="block truncate font-semibold">{w.name}</span>
                     <AnalysisSubtitle workspaceId={w.id} date={w.updatedAt} fallback={w.status} />
                   </span>
-                  {w.score != null && <span className={cn("font-display text-lg font-bold", scoreText(w.score))}>{Math.round(w.score)}</span>}
+                  {w.score != null && (
+                    <span className={cn("font-display text-lg font-bold", scoreText(w.score))}>
+                      {Math.round(w.score)}
+                    </span>
+                  )}
                   <ChevronRight className="h-4 w-4 text-subtle" />
                 </Link>
               ))}

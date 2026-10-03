@@ -32,3 +32,7 @@ dist-ssr
 *.sw?
 
 apk-builds/
+
+# Live-update PRIVATE signing key — never commit (the .pub file IS committed)
+.capgo_key_v2
+.env.local

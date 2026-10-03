@@ -49,7 +49,8 @@ function NotificationsPage() {
         toastError(e);
       }
     }
-    const ws = typeof n.data?.["workspaceId"] === "string" ? (n.data["workspaceId"] as string) : null;
+    const ws =
+      typeof n.data?.["workspaceId"] === "string" ? (n.data["workspaceId"] as string) : null;
     const run = typeof n.data?.["runId"] === "string" ? (n.data["runId"] as string) : undefined;
     if (ws) void nav({ to: "/analyses/$id", params: { id: ws }, search: run ? { run } : {} });
   };
@@ -59,14 +60,26 @@ function NotificationsPage() {
       <PageHeader
         title="Notifications"
         right={
-          <Button variant="ghost" size="sm" className="h-11" loading={readAll.isPending} onClick={() => readAll.mutate()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-11"
+            loading={readAll.isPending}
+            onClick={() => readAll.mutate()}
+          >
             <CheckCheck className="h-4 w-4" /> Mark all read
           </Button>
         }
       />
       <InfiniteList
         q={q}
-        empty={<EmptyState icon={<Bell className="h-7 w-7" />} title="You're all caught up" description="We'll let you know when an analysis finishes." />}
+        empty={
+          <EmptyState
+            icon={<Bell className="h-7 w-7" />}
+            title="You're all caught up"
+            description="We'll let you know when an analysis finishes."
+          />
+        }
         render={(n) => (
           <button
             key={n.id}
@@ -76,7 +89,12 @@ function NotificationsPage() {
               n.readAt ? "border-border bg-card" : "border-primary/30 bg-accent",
             )}
           >
-            <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", n.readAt ? "bg-transparent" : "bg-primary")} />
+            <span
+              className={cn(
+                "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                n.readAt ? "bg-transparent" : "bg-primary",
+              )}
+            />
             <span className="min-w-0 flex-1">
               <span className={cn("block", !n.readAt && "font-semibold")}>{n.title}</span>
               <span className="body-text block">{n.message}</span>

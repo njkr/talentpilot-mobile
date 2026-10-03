@@ -27,15 +27,27 @@ export const STEPS: { name: string; label: string }[] = [
   { name: "estimate_salary", label: "Estimating salary range" },
   { name: "finalize", label: "Finishing up" },
 ];
-export const stepLabel = (n: string) => STEPS.find((s) => s.name === n)?.label ?? n.replace(/_/g, " ");
+export const stepLabel = (n: string) =>
+  STEPS.find((s) => s.name === n)?.label ?? n.replace(/_/g, " ");
 
 type StepState = StepStatus | "retrying";
-export type LiveRun = { status: RunStatus; progress: number; steps: Record<string, StepState>; failedSteps?: string[] | undefined; refunded?: number | undefined };
+export type LiveRun = {
+  status: RunStatus;
+  progress: number;
+  steps: Record<string, StepState>;
+  failedSteps?: string[] | undefined;
+  refunded?: number | undefined;
+};
 
-const terminal = (s: RunStatus) => s === "completed" || s === "failed" || s === "partial" || s === "cancelled";
+const terminal = (s: RunStatus) =>
+  s === "completed" || s === "failed" || s === "partial" || s === "cancelled";
 
 /** SSE with single-use tickets, reconnects, polling fallback and resume handling. */
-export function useRunStream(runId: string, initial: Run | undefined, onTerminal: (r: LiveRun) => void) {
+export function useRunStream(
+  runId: string,
+  initial: Run | undefined,
+  onTerminal: (r: LiveRun) => void,
+) {
   const [live, setLive] = useState<LiveRun>(() => fromRun(initial));
   const cb = useRef(onTerminal);
   cb.current = onTerminal;
@@ -89,33 +101,74 @@ export function useRunStream(runId: string, initial: Run | undefined, onTerminal
         return onFail();
       }
       if (stopped) return;
-      es = new EventSource(`${API_BASE_URL}/workspaces/runs/${runId}/stream?ticket=${encodeURIComponent(ticket.ticket)}&${NGROK_QUERY}`);
+      es = new EventSource(
+        `${API_BASE_URL}/workspaces/runs/${runId}/stream?ticket=${encodeURIComponent(ticket.ticket)}${NGROK_QUERY}`,
+      );
       es.addEventListener("snapshot", (e) => {
         failures = 0;
-        const d = parse(e) as { status: RunStatus; progress: number; steps: { name: string; status: StepStatus }[] };
-        update((s) => ({ ...s, status: d.status, progress: d.progress, steps: { ...s.steps, ...Object.fromEntries((d.steps ?? []).map((x) => [x.name, x.status])) } }));
+        const d = parse(e) as {
+          status: RunStatus;
+          progress: number;
+          steps: { name: string; status: StepStatus }[];
+        };
+        update((s) => ({
+          ...s,
+          status: d.status,
+          progress: d.progress,
+          steps: {
+            ...s.steps,
+            ...Object.fromEntries((d.steps ?? []).map((x) => [x.name, x.status])),
+          },
+        }));
       });
       es.addEventListener("run.started", () => update((s) => ({ ...s, status: "running" })));
       es.addEventListener("step.started", (e) => {
         const d = parse(e) as { step: string; progress: number };
-        update((s) => ({ ...s, status: "running", progress: d.progress ?? s.progress, steps: { ...s.steps, [d.step]: "running" } }));
+        update((s) => ({
+          ...s,
+          status: "running",
+          progress: d.progress ?? s.progress,
+          steps: { ...s.steps, [d.step]: "running" },
+        }));
       });
       es.addEventListener("step.completed", (e) => {
         const d = parse(e) as { step: string; progress: number };
-        update((s) => ({ ...s, progress: d.progress ?? s.progress, steps: { ...s.steps, [d.step]: "completed" } }));
+        update((s) => ({
+          ...s,
+          progress: d.progress ?? s.progress,
+          steps: { ...s.steps, [d.step]: "completed" },
+        }));
       });
       es.addEventListener("step.skipped", (e) => {
         const d = parse(e) as { step: string; progress: number };
-        update((s) => ({ ...s, progress: d.progress ?? s.progress, steps: { ...s.steps, [d.step]: "skipped" } }));
+        update((s) => ({
+          ...s,
+          progress: d.progress ?? s.progress,
+          steps: { ...s.steps, [d.step]: "skipped" },
+        }));
       });
       es.addEventListener("step.failed", (e) => {
         const d = parse(e) as { step: string; willRetry: boolean };
-        update((s) => ({ ...s, steps: { ...s.steps, [d.step]: d.willRetry ? "retrying" : "failed" } }));
+        update((s) => ({
+          ...s,
+          steps: { ...s.steps, [d.step]: d.willRetry ? "retrying" : "failed" },
+        }));
       });
-      es.addEventListener("run.completed", () => update((s) => ({ ...s, status: "completed", progress: 100 })));
+      es.addEventListener("run.completed", () =>
+        update((s) => ({ ...s, status: "completed", progress: 100 })),
+      );
       es.addEventListener("run.failed", (e) => {
-        const d = parse(e) as { status: "failed" | "partial"; failedSteps: string[]; refundedCredits: number };
-        update((s) => ({ ...s, status: d.status, failedSteps: d.failedSteps, refunded: d.refundedCredits }));
+        const d = parse(e) as {
+          status: "failed" | "partial";
+          failedSteps: string[];
+          refundedCredits: number;
+        };
+        update((s) => ({
+          ...s,
+          status: d.status,
+          failedSteps: d.failedSteps,
+          refunded: d.refundedCredits,
+        }));
       });
       es.onerror = () => {
         es?.close();
@@ -179,7 +232,15 @@ export function Timeline({ live }: { live: LiveRun }) {
         <span>Progress</span>
         <span>{Math.round(live.progress)}%</span>
       </div>
-      <FlightPath done={STEPS.filter((s) => live.steps[s.name] === "completed" || live.steps[s.name] === "skipped").length} total={STEPS.length} landed={live.status === "completed"} />
+      <FlightPath
+        done={
+          STEPS.filter(
+            (s) => live.steps[s.name] === "completed" || live.steps[s.name] === "skipped",
+          ).length
+        }
+        total={STEPS.length}
+        landed={live.status === "completed"}
+      />
       <ProgressBar value={live.progress} />
       <ol className="space-y-1">
         {STEPS.map((s) => {
@@ -187,7 +248,13 @@ export function Timeline({ live }: { live: LiveRun }) {
           return (
             <li key={s.name} className="flex min-h-11 items-center gap-3">
               <StepIcon s={st} />
-              <span className={cn("text-sm", st === "running" ? "font-semibold" : st ? "" : "text-muted-foreground", st === "skipped" && "line-through")}>
+              <span
+                className={cn(
+                  "text-sm",
+                  st === "running" ? "font-semibold" : st ? "" : "text-muted-foreground",
+                  st === "skipped" && "line-through",
+                )}
+              >
                 {s.label}
                 {st === "retrying" && <span className="caption ml-1">retrying…</span>}
               </span>
@@ -199,7 +266,17 @@ export function Timeline({ live }: { live: LiveRun }) {
   );
 }
 
-export function ProgressView({ workspaceId, runId, initial, onDone }: { workspaceId: string; runId: string; initial: Run | undefined; onDone: () => void }) {
+export function ProgressView({
+  workspaceId,
+  runId,
+  initial,
+  onDone,
+}: {
+  workspaceId: string;
+  runId: string;
+  initial: Run | undefined;
+  onDone: () => void;
+}) {
   const qc = useQueryClient();
   const live = useRunStream(runId, initial, (r) => {
     void qc.invalidateQueries({ queryKey: qk.workspace(workspaceId) });
@@ -220,7 +297,15 @@ export function ProgressView({ workspaceId, runId, initial, onDone }: { workspac
   );
 }
 
-export function FailedView({ run, onRetried, onViewResults }: { run: Run; onRetried: (r: Run) => void; onViewResults?: (() => void) | undefined }) {
+export function FailedView({
+  run,
+  onRetried,
+  onViewResults,
+}: {
+  run: Run;
+  onRetried: (r: Run) => void;
+  onViewResults?: (() => void) | undefined;
+}) {
   const qc = useQueryClient();
   const retry = useMutation({
     mutationFn: () => api.post<Run>(`/workspaces/runs/${run.id}/retry`),
@@ -234,21 +319,36 @@ export function FailedView({ run, onRetried, onViewResults }: { run: Run; onRetr
   return (
     <div className="space-y-3">
       <Card className="space-y-3">
-        <p className="h3">{run.status === "partial" ? "Analysis partly finished" : "Analysis failed"}</p>
+        <p className="h3">
+          {run.status === "partial" ? "Analysis partly finished" : "Analysis failed"}
+        </p>
         {failed.length > 0 && (
           <ul className="space-y-1">
             {failed.map((s) => (
               <li key={s.name} className="flex items-start gap-2 text-sm">
                 <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                <span>{stepLabel(s.name)}{s.error ? <span className="caption block">{s.error}</span> : null}</span>
+                <span>
+                  {stepLabel(s.name)}
+                  {s.error ? <span className="caption block">{s.error}</span> : null}
+                </span>
               </li>
             ))}
           </ul>
         )}
         {run.error && <p className="body-text">{run.error}</p>}
-        {run.creditsRefunded > 0 && <p className="rounded-lg bg-success/10 p-3 text-sm font-medium text-success">{run.creditsRefunded} credits refunded</p>}
-        <ActionButton size="full" loading={retry.isPending} onClick={() => retry.mutate()}><RotateCw className="h-4 w-4" /> Retry at no extra cost</ActionButton>
-        {onViewResults && <ActionButton variant="secondary" size="full" onClick={onViewResults}>View available results</ActionButton>}
+        {run.creditsRefunded > 0 && (
+          <p className="rounded-lg bg-success/10 p-3 text-sm font-medium text-success">
+            {run.creditsRefunded} credits refunded
+          </p>
+        )}
+        <ActionButton size="full" loading={retry.isPending} onClick={() => retry.mutate()}>
+          <RotateCw className="h-4 w-4" /> Retry at no extra cost
+        </ActionButton>
+        {onViewResults && (
+          <ActionButton variant="secondary" size="full" onClick={onViewResults}>
+            View available results
+          </ActionButton>
+        )}
       </Card>
       <Timeline live={fromRun(run)} />
     </div>

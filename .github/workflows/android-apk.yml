@@ -32,6 +32,12 @@ on:
         description: 'Release notes shown in the "Update available" sheet (overrides native-version.json)'
         required: false
         type: string
+      build_type:
+        description: 'APK build type. release = minified + signed with the release key (uninstall debug builds once first)'
+        required: false
+        type: choice
+        options: [debug, release]
+        default: debug
   push:
     branches: [main]
     paths-ignore:
@@ -51,6 +57,8 @@ permissions:
 
 env:
   RELEASES_REPO: njkr/talentpilot-releases
+  # Push builds always use debug for now; switch the default only after moving users to release.
+  BUILD_TYPE: ${{ inputs.build_type || 'debug' }}
 
 jobs:
   build:
@@ -125,6 +133,27 @@ jobs:
             echo "KEYSTORE_RESTORED=false" >> "$GITHUB_ENV"
           fi
 
+      - name: Restore release keystore
+        if: env.BUILD_TYPE == 'release'
+        env:
+          KS_B64: ${{ secrets.ANDROID_RELEASE_KEYSTORE }}
+          KS_PASS: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          for v in KS_B64 KS_PASS KS_ALIAS KEY_PASS; do
+            [ -n "${!v}" ] || { echo "::error::Release build needs ANDROID_RELEASE_KEYSTORE / _KEYSTORE_PASSWORD / _KEY_ALIAS / _KEY_PASSWORD secrets."; exit 1; }
+          done
+          printf '%s' "$KS_B64" | tr -d '\r\n ' | base64 -d > "$RUNNER_TEMP/release.keystore"
+          test -s "$RUNNER_TEMP/release.keystore"
+          {
+            echo "ANDROID_RELEASE_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore"
+            echo "ANDROID_RELEASE_KEYSTORE_PASSWORD=$KS_PASS"
+            echo "ANDROID_RELEASE_KEY_ALIAS=$KS_ALIAS"
+            echo "ANDROID_RELEASE_KEY_PASSWORD=$KEY_PASS"
+            echo "KEYSTORE_RESTORED=true"
+          } >> "$GITHUB_ENV"
+
       - name: Plan release
         id: plan
         env:
@@ -156,7 +185,7 @@ jobs:
       - name: Refuse to publish an APK that cannot update existing installs
         if: steps.plan.outputs.publish == 'true' && steps.plan.outputs.release_native == 'true' && env.KEYSTORE_RESTORED != 'true'
         run: |
-          echo "::error::Publishing a native release needs the ANDROID_DEBUG_KEYSTORE secret (stable signing key)."
+          echo "::error::Publishing a native release needs a stable signing key (ANDROID_DEBUG_KEYSTORE, or the release keystore secrets for build_type=release)."
           exit 1
 
       - name: Build static web app
@@ -166,32 +195,55 @@ jobs:
         run: test -f dist/client/index.html
 
       # index.html must be at the zip root; the checksum is what the app passes to the updater.
-      - name: Zip web bundle
+      # Signed live updates: the zip is encrypted with CAPGO_PRIVATE_KEY; the app decrypts with
+      # the public key (.capgo_key_v2.pub → capacitor.config.ts) and rejects unsigned bundles.
+      - name: Zip and sign web bundle
         id: bundle
+        env:
+          CAPGO_PRIVATE_KEY: ${{ secrets.CAPGO_PRIVATE_KEY }}
+          PUBLISH: ${{ steps.plan.outputs.publish }}
         run: |
           ZIP="bundle-${VITE_BUNDLE_VERSION}.zip"
           (cd dist/client && zip -qr -X "$GITHUB_WORKSPACE/$ZIP" .)
           unzip -l "$ZIP" | grep -E ' index\.html$' >/dev/null
           echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
-          echo "sha256=$(sha256sum "$ZIP" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          SHA=$(sha256sum "$ZIP" | cut -d' ' -f1)
+          if [ -z "$CAPGO_PRIVATE_KEY" ] || [ ! -f .capgo_key_v2.pub ]; then
+            if [ "$PUBLISH" = "true" ]; then
+              echo "::error::Publishing needs the CAPGO_PRIVATE_KEY secret and a committed .capgo_key_v2.pub (signed live updates)."
+              exit 1
+            fi
+            echo "::warning::Bundle not signed (CAPGO_PRIVATE_KEY / .capgo_key_v2.pub missing) - fine for build-only runs."
+            exit 0
+          fi
+          bunx @capgo/cli@8.70.0 bundle encrypt "$ZIP" "$SHA" --key-data "$CAPGO_PRIVATE_KEY" --json > enc.json
+          ENC_ZIP=$(node -p "require('./enc.json').filename")
+          mv "$ENC_ZIP" "$ZIP"
+          echo "checksum=$(node -p "require('./enc.json').checksum")" >> "$GITHUB_OUTPUT"
+          SK=$(node -p "require('./enc.json').ivSessionKey")
+          echo "::add-mask::$SK"
+          echo "session_key=$SK" >> "$GITHUB_OUTPUT"
+          rm enc.json
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Assemble debug APK
+      - name: Assemble APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          if [ "$BUILD_TYPE" = "release" ]; then ./gradlew assembleRelease --no-daemon; else ./gradlew assembleDebug --no-daemon; fi
 
       - name: Name APK and show signing certificate
         id: apk
         run: |
-          APK_DIR=android/app/build/outputs/apk/debug
+          APK_DIR=android/app/build/outputs/apk/$BUILD_TYPE
+          SRC="$APK_DIR/app-$BUILD_TYPE.apk"
+          test -f "$SRC" || { echo "::error::$SRC missing (release builds must be signed - check the keystore secrets)"; exit 1; }
           NAMED="talentpilot-${ANDROID_VERSION_NAME}-${ANDROID_VERSION_CODE}.apk"
-          cp "$APK_DIR/app-debug.apk" "$NAMED"
+          cp "$SRC" "$NAMED"
           mkdir -p upload
-          cp "$APK_DIR/app-debug.apk" upload/app-debug.apk
+          cp "$SRC" "upload/app-$BUILD_TYPE.apk"
           cp "bundle-${VITE_BUNDLE_VERSION}.zip" upload/
           echo "named=$NAMED" >> "$GITHUB_OUTPUT"
           # The certificate digest is public and should be IDENTICAL on every run (stable key).
@@ -200,7 +252,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: talentpilot-debug-${{ steps.ver.outputs.short }}
+          name: talentpilot-${{ env.BUILD_TYPE }}-${{ steps.ver.outputs.short }}
           path: upload/
           if-no-files-found: error
 
@@ -243,14 +295,16 @@ jobs:
           MIN_NATIVE: ${{ steps.plan.outputs.min_native }}
           MIN_SUPPORTED: ${{ steps.plan.outputs.min_supported }}
           NATIVE_HASH: ${{ steps.plan.outputs.native_hash }}
-          SHA256: ${{ steps.bundle.outputs.sha256 }}
+          CHECKSUM: ${{ steps.bundle.outputs.checksum }}
+          SESSION_KEY: ${{ steps.bundle.outputs.session_key }}
           ZIP: ${{ steps.bundle.outputs.zip }}
           APK: ${{ steps.apk.outputs.named }}
         run: |
           MANIFEST_PATH=releases/manifest.json \
           BUNDLE_VERSION="$VITE_BUNDLE_VERSION" \
           BUNDLE_URL="$BASE/bundle-$VITE_BUNDLE_VERSION/$ZIP" \
-          BUNDLE_SHA256="$SHA256" \
+          BUNDLE_CHECKSUM="$CHECKSUM" \
+          BUNDLE_SESSION_KEY="$SESSION_KEY" \
           MIN_NATIVE_VERSION_CODE="$MIN_NATIVE" \
           NATIVE_RELEASE="$RELEASE_NATIVE" \
           NATIVE_VERSION_CODE="$ANDROID_VERSION_CODE" \

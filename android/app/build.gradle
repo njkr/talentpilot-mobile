@@ -31,11 +31,23 @@ android {
             keyAlias "androiddebugkey"
             keyPassword "android"
         }
+        // Release key comes ONLY from env vars (CI restores it from secrets). Never commit it.
+        release {
+            def ks = System.getenv("ANDROID_RELEASE_KEYSTORE_PATH")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("ANDROID_RELEASE_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_RELEASE_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (System.getenv("ANDROID_RELEASE_KEYSTORE_PATH")) signingConfig signingConfigs.release
         }
     }
 }

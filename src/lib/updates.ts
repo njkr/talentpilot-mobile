@@ -37,6 +37,8 @@ export interface BundleInfo {
   version: string;
   url: string;
   checksum: string;
+  /** Capgo ivSessionKey: present only on encrypted/signed bundles. */
+  sessionKey: string;
   minNativeVersionCode: number;
 }
 export interface NativeInfo {
@@ -56,6 +58,10 @@ const num = (v: unknown, fallback: number) =>
   typeof v === "number" && Number.isFinite(v) ? v : fallback;
 
 /** Defensive parse: anything malformed degrades to "nothing to do" instead of throwing. */
+/** A bundle we may install: has a Capgo session key and an (encrypted) checksum. */
+export const isSignedBundle = (b: BundleInfo) =>
+  !!b.sessionKey && /^[0-9a-f]{64,}$/i.test(b.checksum);
+
 export function parseManifest(raw: unknown): Manifest | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as { bundle?: Record<string, unknown>; native?: Record<string, unknown> };
@@ -66,6 +72,7 @@ export function parseManifest(raw: unknown): Manifest | null {
       version: str(b["version"]),
       url: str(b["url"]),
       checksum: str(b["checksum"]),
+      sessionKey: str(b["sessionKey"]),
       minNativeVersionCode: num(b["minNativeVersionCode"], 1),
     },
     native: {
@@ -296,6 +303,9 @@ async function applyBundle(bundle: BundleInfo): Promise<{ id: string; version: s
   // Unknown installed build (App.getInfo failed): assume compatible rather than blocking updates.
   const build = state.installed?.build ?? Number.MAX_SAFE_INTEGER;
 
+  // Only signed/encrypted bundles are accepted (the native side decrypts with the public key
+  // in capacitor.config.ts and fails on a bundle that wasn't encrypted with the CI key).
+  if (!isSignedBundle(bundle)) return null;
   const action = bundleAction(bundle, build, currentVersion, list.bundles);
   if (action === "skip") return null;
 
@@ -304,7 +314,12 @@ async function applyBundle(bundle: BundleInfo): Promise<{ id: string; version: s
     id = list.bundles.find((b) => b.version === bundle.version)!.id;
   } else {
     const info = await withTimeout(
-      u.download({ url: bundle.url, version: bundle.version, checksum: bundle.checksum }),
+      u.download({
+        url: bundle.url,
+        version: bundle.version,
+        checksum: bundle.checksum,
+        sessionKey: bundle.sessionKey,
+      }),
       120_000,
       "download",
     );

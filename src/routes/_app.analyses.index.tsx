@@ -9,7 +9,12 @@ import { WsStatusBadge } from "@/lib/resumeUi";
 import { cn } from "@/lib/utils";
 import type { Workspace, WorkspaceStatus } from "@/types/api";
 
-const FILTERS = { all: null, running: ["queued", "processing"], complete: ["completed", "partial"], failed: ["failed"] } as const satisfies Record<string, readonly WorkspaceStatus[] | null>;
+const FILTERS = {
+  all: null,
+  running: ["queued", "processing"],
+  complete: ["completed", "partial"],
+  failed: ["failed"],
+} as const satisfies Record<string, readonly WorkspaceStatus[] | null>;
 type FilterKey = keyof typeof FILTERS;
 
 export const Route = createFileRoute("/_app/analyses/")({
@@ -36,7 +41,13 @@ function AnalysesPage() {
     <div>
       <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1">
         {(Object.keys(FILTERS) as FilterKey[]).map((f) => (
-          <Chip key={f} active={filter === f} onClick={() => void nav({ to: "/analyses", search: f === "all" ? {} : { filter: f }, replace: true })}>
+          <Chip
+            key={f}
+            active={filter === f}
+            onClick={() =>
+              void nav({ to: "/analyses", search: f === "all" ? {} : { filter: f }, replace: true })
+            }
+          >
             {f}
           </Chip>
         ))}
@@ -48,8 +59,18 @@ function AnalysesPage() {
           <EmptyState
             icon={<LineChart className="h-7 w-7" />}
             title={filter === "all" ? "No analyses yet" : `No ${filter} analyses`}
-            description={filter === "all" ? "Pick a resume and a job to see your ATS score, suggested edits and more." : "Try another filter."}
-            action={filter === "all" ? <Button onClick={() => openNewAnalysis()}><Plus className="h-4 w-4" /> New analysis</Button> : undefined}
+            description={
+              filter === "all"
+                ? "Pick a resume and a job to see your ATS score, suggested edits and more."
+                : "Try another filter."
+            }
+            action={
+              filter === "all" ? (
+                <Button onClick={() => openNewAnalysis()}>
+                  <Plus className="h-4 w-4" /> New analysis
+                </Button>
+              ) : undefined
+            }
           />
         }
         render={(w) => (
@@ -62,7 +83,13 @@ function AnalysesPage() {
                   <AnalysisSubtitle workspaceId={w.id} resumeId={w.resumeId} date={w.createdAt} />
                 </span>
               </span>
-              {w.overallScore != null && <span className={cn("font-display text-xl font-extrabold", scoreText(w.overallScore))}>{Math.round(w.overallScore)}</span>}
+              {w.overallScore != null && (
+                <span
+                  className={cn("font-display text-xl font-extrabold", scoreText(w.overallScore))}
+                >
+                  {Math.round(w.overallScore)}
+                </span>
+              )}
             </Card>
           </Link>
         )}

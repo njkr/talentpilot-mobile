@@ -1,13 +1,20 @@
-import { API_BASE_URL } from "@/config";
+import { API_BASE_URL, IS_NGROK } from "@/config";
 import { tokenStorage } from "@/lib/tokenStorage";
 import type { ApiErrorBody, ApiResponse, ErrorCode, Page, SessionResponse } from "@/types/api";
 
 /** Mobile clients receive the refresh token in the JSON body. */
 export type MobileSessionResponse = SessionResponse & { refreshToken?: string };
 
-/** ngrok dev tunnel header — remove for production. */
-const NGROK_HEADERS: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
-export const NGROK_QUERY = "ngrok-skip-browser-warning=true";
+/** ngrok dev tunnel flag — only sent when the API URL is an ngrok tunnel. */
+const NGROK_HEADERS: Record<string, string> = IS_NGROK
+  ? { "ngrok-skip-browser-warning": "true" }
+  : {};
+/** Query-string suffix for EventSource URLs ("" or "&ngrok-skip-browser-warning=true"). */
+export const NGROK_QUERY = IS_NGROK ? "&ngrok-skip-browser-warning=true" : "";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** How long to wait for a concurrent rotation to land before re-reading the token. */
+export const SUPERSEDED_WAIT_MS = 300;
 
 export class ApiError extends Error {
   constructor(
@@ -57,7 +64,27 @@ export function refreshSession(): Promise<MobileSessionResponse> {
     refreshInFlight = (async () => {
       const rt = await tokenStorage.get();
       if (!rt) throw new ApiError("TOKEN_INVALID", "No session", 401);
-      const s = await rawRequest<MobileSessionResponse>("POST", "/auth/refresh", { refreshToken: rt }, false);
+      let s: MobileSessionResponse;
+      try {
+        s = await rawRequest<MobileSessionResponse>(
+          "POST",
+          "/auth/refresh",
+          { refreshToken: rt },
+          false,
+        );
+      } catch (e) {
+        // Another tab/process rotated the token under us: wait, re-read, retry once if it changed.
+        if (!(e instanceof ApiError && e.status === 401 && e.code === "TOKEN_SUPERSEDED")) throw e;
+        await sleep(SUPERSEDED_WAIT_MS);
+        const rt2 = await tokenStorage.get();
+        if (!rt2 || rt2 === rt) throw e;
+        s = await rawRequest<MobileSessionResponse>(
+          "POST",
+          "/auth/refresh",
+          { refreshToken: rt2 },
+          false,
+        );
+      }
       await applySession(s);
       listener?.onSession(s);
       return s;
@@ -69,7 +96,10 @@ export function refreshSession(): Promise<MobileSessionResponse> {
 }
 
 // ── low level ───────────────────────────────────────────────────────────
-type Envelope<T> = { data: T; meta: { requestId: string; nextCursor?: string | null; hasMore?: boolean } };
+type Envelope<T> = {
+  data: T;
+  meta: { requestId: string; nextCursor?: string | null; hasMore?: boolean };
+};
 
 async function rawRequest<T>(
   method: string,
@@ -79,7 +109,11 @@ async function rawRequest<T>(
   extraHeaders: Record<string, string> = {},
   full = false,
 ): Promise<T> {
-  const headers: Record<string, string> = { ...NGROK_HEADERS, "X-Client": "mobile", ...extraHeaders };
+  const headers: Record<string, string> = {
+    ...NGROK_HEADERS,
+    "X-Client": "mobile",
+    ...extraHeaders,
+  };
   const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   if (withAuth && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
@@ -116,7 +150,8 @@ async function rawRequest<T>(
   return (full ? json : json.data) as T;
 }
 
-const PUBLIC_AUTH = /^\/auth\/(login|register|verify-email|resend-otp|refresh|forgot-password|reset-password)/;
+const PUBLIC_AUTH =
+  /^\/auth\/(login|register|verify-email|resend-otp|refresh|forgot-password|reset-password)/;
 
 async function request<T>(
   method: string,
@@ -126,6 +161,21 @@ async function request<T>(
   full = false,
 ): Promise<T> {
   const isPublic = PUBLIC_AUTH.test(path);
+  // No access token yet (e.g. launched offline): get one first instead of sending an
+  // unauthenticated request the server would answer with TOKEN_INVALID.
+  if (!isPublic && !accessToken) {
+    try {
+      await refreshSession();
+    } catch (re) {
+      if (
+        re instanceof ApiError &&
+        re.status === 401 &&
+        (re.code === "TOKEN_INVALID" || re.code === "TOKEN_REUSE_DETECTED")
+      )
+        await hardLogout();
+      throw re;
+    }
+  }
   try {
     return await rawRequest<T>(method, path, body, !isPublic, headers, full);
   } catch (e) {
@@ -134,7 +184,12 @@ async function request<T>(
       try {
         await refreshSession();
       } catch (re) {
-        if (re instanceof ApiError && re.status === 401) await hardLogout();
+        if (
+          re instanceof ApiError &&
+          re.status === 401 &&
+          (re.code === "TOKEN_INVALID" || re.code === "TOKEN_REUSE_DETECTED")
+        )
+          await hardLogout();
         throw re;
       }
       return rawRequest<T>(method, path, body, true, headers, full);
@@ -162,7 +217,11 @@ export const api = {
   postIdempotent: <T>(path: string, body?: unknown) =>
     request<T>("POST", path, body, { "Idempotency-Key": crypto.randomUUID() }),
   /** Multipart upload with progress (XHR). Retries once after a silent refresh. */
-  uploadWithProgress: async <T>(path: string, file: File, onProgress: (pct: number) => void): Promise<T> => {
+  uploadWithProgress: async <T>(
+    path: string,
+    file: File,
+    onProgress: (pct: number) => void,
+  ): Promise<T> => {
     const send = () =>
       new Promise<T>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -170,8 +229,12 @@ export const api = {
         for (const [k, v] of Object.entries(NGROK_HEADERS)) xhr.setRequestHeader(k, v);
         xhr.setRequestHeader("X-Client", "mobile");
         if (accessToken) xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
-        xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
-        xhr.onerror = () => reject(new ApiError("NETWORK_ERROR", "Can't reach the server. Check your connection.", 0));
+        xhr.upload.onprogress = (e) =>
+          e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
+        xhr.onerror = () =>
+          reject(
+            new ApiError("NETWORK_ERROR", "Can't reach the server. Check your connection.", 0),
+          );
         xhr.onload = () => {
           let json: ApiResponse<T> | null = null;
           try {
@@ -179,7 +242,8 @@ export const api = {
           } catch {
             /* non-JSON */
           }
-          if (xhr.status >= 200 && xhr.status < 300 && json && json.success) return resolve(json.data);
+          if (xhr.status >= 200 && xhr.status < 300 && json && json.success)
+            return resolve(json.data);
           const err: Partial<ApiErrorBody> = json && json.success === false ? json.error : {};
           reject(
             new ApiError(
@@ -196,6 +260,7 @@ export const api = {
         fd.append("file", file);
         xhr.send(fd);
       });
+    if (!accessToken) await refreshSession();
     try {
       return await send();
     } catch (e) {
@@ -204,16 +269,34 @@ export const api = {
         onProgress(0);
         return send();
       }
-      if (e instanceof ApiError && (e.code === "TOKEN_INVALID" || e.code === "TOKEN_REUSE_DETECTED")) await hardLogout();
+      if (e instanceof ApiError && e.code === "TOKEN_SUPERSEDED") {
+        if (refreshInFlight) await refreshInFlight.catch(() => undefined);
+        onProgress(0);
+        return send();
+      }
+      if (
+        e instanceof ApiError &&
+        (e.code === "TOKEN_INVALID" || e.code === "TOKEN_REUSE_DETECTED")
+      )
+        await hardLogout();
       throw e;
     }
   },
-  list: async <T>(path: string, q: { cursor?: string | null; limit?: number } = {}): Promise<Page<T>> => {
+  list: async <T>(
+    path: string,
+    q: { cursor?: string | null; limit?: number } = {},
+  ): Promise<Page<T>> => {
     const params = new URLSearchParams();
     if (q.cursor) params.set("cursor", q.cursor);
     params.set("limit", String(q.limit ?? 20));
     const sep = path.includes("?") ? "&" : "?";
-    const env = await request<Envelope<T[]>>("GET", `${path}${sep}${params}`, undefined, undefined, true);
+    const env = await request<Envelope<T[]>>(
+      "GET",
+      `${path}${sep}${params}`,
+      undefined,
+      undefined,
+      true,
+    );
     return { data: env.data, nextCursor: env.meta.nextCursor ?? null, hasMore: !!env.meta.hasMore };
   },
 };

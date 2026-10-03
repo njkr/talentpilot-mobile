@@ -14,9 +14,15 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { LayoutGroup, MotionConfig } from "framer-motion";
 
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/plus-jakarta-sans/700.css";
+import "@fontsource/plus-jakarta-sans/800.css";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider } from "../lib/auth";
+import { AuthProvider, useAuth } from "../lib/auth";
 import { useOnline } from "../lib/stores";
 import { NativeBridge } from "../components/GlobalSheets";
 import { UpdateSheets } from "../components/UpdateSheets";
@@ -90,19 +96,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#ffffff" },
       { name: "color-scheme", content: "light dark" },
       { title: "TalentPilot — AI job application assistant" },
-      { name: "description", content: "Match your resume to any job, get ATS scores, edits, cover letters and interview prep." },
+      {
+        name: "description",
+        content:
+          "Match your resume to any job, get ATS scores, edits, cover letters and interview prep.",
+      },
       { property: "og:title", content: "TalentPilot — AI job application assistant" },
-      { property: "og:description", content: "Match your resume to any job, get ATS scores, edits, cover letters and interview prep." },
+      {
+        property: "og:description",
+        content:
+          "Match your resume to any job, get ATS scores, edits, cover letters and interview prep.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap",
-      },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
     ],
@@ -130,15 +138,30 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function OfflineBanner() {
   const online = useOnline();
-  if (online) return null;
+  const { offline } = useAuth();
+  if (online && !offline) return null;
   return (
     <div className="pt-safe fixed inset-x-0 top-0 z-[60] bg-warning text-center text-xs font-medium text-foreground">
-      <div className="py-1.5">You're offline. Showing saved data.</div>
+      <div className="py-1.5">
+        {online
+          ? "Can't reach TalentPilot. Showing saved data."
+          : "You're offline. Showing saved data."}
+      </div>
     </div>
   );
 }
 
-const PERSIST_ROOTS = new Set(["dashboard", "resumes", "resume", "jobs", "job", "workspaces", "workspace", "credits", "profile"]);
+const PERSIST_ROOTS = new Set([
+  "dashboard",
+  "resumes",
+  "resume",
+  "jobs",
+  "job",
+  "workspaces",
+  "workspace",
+  "credits",
+  "profile",
+]);
 const persister = createSyncStoragePersister({
   storage: typeof window !== "undefined" ? window.localStorage : undefined,
   key: "tp_query_cache",
@@ -154,7 +177,8 @@ function RootComponent() {
         persister,
         maxAge: 7 * 24 * 3600_000,
         dehydrateOptions: {
-          shouldDehydrateQuery: (q) => q.state.status === "success" && PERSIST_ROOTS.has(String(q.queryKey[0])),
+          shouldDehydrateQuery: (q) =>
+            q.state.status === "success" && PERSIST_ROOTS.has(String(q.queryKey[0])),
         },
       }}
     >

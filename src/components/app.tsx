@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "@tanstack/react-router";
 import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, Loader2, MoreHorizontal, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  Loader2,
+  MoreHorizontal,
+  RefreshCw,
+} from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { friendlyError } from "@/lib/errors";
 import { useOnline } from "@/lib/stores";
@@ -14,7 +22,15 @@ import { qk } from "@/lib/queries";
 import type { Page, Resume, Workspace } from "@/types/api";
 
 // ── Page header with back button ──────────────────────────────────────
-export function PageHeader({ title, back = true, right }: { title: string; back?: boolean; right?: ReactNode }) {
+export function PageHeader({
+  title,
+  back = true,
+  right,
+}: {
+  title: string;
+  back?: boolean;
+  right?: ReactNode;
+}) {
   const router = useRouter();
   return (
     <div className="-mx-1 mb-3 flex min-h-11 items-center gap-1">
@@ -33,7 +49,17 @@ export function PageHeader({ title, back = true, right }: { title: string; back?
   );
 }
 
-export function AnalysisSubtitle({ workspaceId, resumeId, date, fallback }: { workspaceId: string; resumeId?: string; date: string; fallback?: string }) {
+export function AnalysisSubtitle({
+  workspaceId,
+  resumeId,
+  date,
+  fallback,
+}: {
+  workspaceId: string;
+  resumeId?: string;
+  date: string;
+  fallback?: string;
+}) {
   const workspace = useQuery({
     queryKey: qk.workspace(workspaceId),
     queryFn: () => api.get<Workspace>(`/workspaces/${workspaceId}`),
@@ -45,11 +71,23 @@ export function AnalysisSubtitle({ workspaceId, resumeId, date, fallback }: { wo
     queryFn: () => api.get<Resume>(`/resumes/${resolvedResumeId}`),
     enabled: !!resolvedResumeId,
   });
-  return <span className="caption block min-w-0 truncate">{resume.data?.title ?? fallback ?? "Resume"} · {fmtDate(date)}</span>;
+  return (
+    <span className="caption block min-w-0 truncate">
+      {resume.data?.title ?? fallback ?? "Resume"} · {fmtDate(date)}
+    </span>
+  );
 }
 
 // ── Error state ───────────────────────────────────────────────────────
-export function ErrorState({ error, onRetry, compact }: { error: unknown; onRetry?: () => void; compact?: boolean }) {
+export function ErrorState({
+  error,
+  onRetry,
+  compact,
+}: {
+  error: unknown;
+  onRetry?: () => void;
+  compact?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const rid = error instanceof ApiError ? error.requestId : undefined;
   const code = error instanceof ApiError ? error.code : undefined;
@@ -72,7 +110,12 @@ export function ErrorState({ error, onRetry, compact }: { error: unknown; onRetr
       )}
       {open && (
         <p className="caption select-all break-all font-mono">
-          {code && <>code: {code}<br /></>}
+          {code && (
+            <>
+              code: {code}
+              <br />
+            </>
+          )}
           {rid && <>requestId: {rid}</>}
         </p>
       )}
@@ -91,7 +134,13 @@ export function CardSkeletons({ count = 4, h = "h-20" }: { count?: number; h?: s
 }
 
 // ── Pull to refresh ───────────────────────────────────────────────────
-export function PullToRefresh({ onRefresh, children }: { onRefresh: () => Promise<unknown>; children: ReactNode }) {
+export function PullToRefresh({
+  onRefresh,
+  children,
+}: {
+  onRefresh: () => Promise<unknown>;
+  children: ReactNode;
+}) {
   const start = useRef<number | null>(null);
   const [pull, setPull] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -125,7 +174,16 @@ export function PullToRefresh({ onRefresh, children }: { onRefresh: () => Promis
         style={{ height: busy ? 40 : pull }}
         aria-hidden={!busy}
       >
-        <span className="text-primary" style={busy ? undefined : { transform: `scale(${0.5 + 0.5 * Math.min(1, pull / TH)}) rotate(${(1 - Math.min(1, pull / TH)) * 180}deg)` }}>
+        <span
+          className="text-primary"
+          style={
+            busy
+              ? undefined
+              : {
+                  transform: `scale(${0.5 + 0.5 * Math.min(1, pull / TH)}) rotate(${(1 - Math.min(1, pull / TH)) * 180}deg)`,
+                }
+          }
+        >
           <Triangle lift={busy} className="h-5 w-5" />
         </span>
       </div>
@@ -190,7 +248,13 @@ export function InfiniteList<T>({
 }
 
 // ── Action sheet ("…" menus) ──────────────────────────────────────────
-export type SheetAction = { label: string; icon?: ReactNode; danger?: boolean; onSelect: () => void; hidden?: boolean };
+export type SheetAction = {
+  label: string;
+  icon?: ReactNode;
+  danger?: boolean;
+  onSelect: () => void;
+  hidden?: boolean;
+};
 export function ActionSheet({ title, actions }: { title: string; actions: SheetAction[] }) {
   const [open, setOpen] = useState(false);
   return (
@@ -256,7 +320,12 @@ export function ConfirmSheet({
     <BottomSheet open={open} onClose={onClose} title={title}>
       {body && <div className="body-text">{body}</div>}
       <div className="mt-5 space-y-3">
-        <ActionButton variant={danger ? "danger" : "primary"} size="full" loading={loading} onClick={onConfirm}>
+        <ActionButton
+          variant={danger ? "danger" : "primary"}
+          size="full"
+          loading={loading}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </ActionButton>
         <Button variant="secondary" size="full" onClick={onClose}>
@@ -294,8 +363,14 @@ export function Collapsible({
   return (
     <Card className="p-0">
       <div className="flex items-center">
-        <button className="flex min-h-14 flex-1 items-center gap-2 px-4 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")} />
+        <button
+          className="flex min-h-14 flex-1 items-center gap-2 px-4 text-left"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          <ChevronDown
+            className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")}
+          />
           <span className="h3 flex-1">{title}</span>
         </button>
         {right && <div className="pr-2">{right}</div>}
@@ -306,17 +381,29 @@ export function Collapsible({
 }
 
 // ── Progress bar ──────────────────────────────────────────────────────
-export function ProgressBar({ value, className, tone = "primary" }: { value: number; className?: string; tone?: "primary" | "success" | "warning" }) {
+export function ProgressBar({
+  value,
+  className,
+  tone = "primary",
+}: {
+  value: number;
+  className?: string;
+  tone?: "primary" | "success" | "warning";
+}) {
   const bg = tone === "success" ? "bg-success" : tone === "warning" ? "bg-warning" : "bg-primary";
   return (
     <div className={cn("h-2 w-full overflow-hidden rounded-full bg-border/70", className)}>
-      <div className={cn("h-full rounded-full transition-all duration-500", bg)} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      <div
+        className={cn("h-full rounded-full transition-all duration-500", bg)}
+        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+      />
     </div>
   );
 }
 
 export const scoreTone = (s: number) => (s >= 80 ? "success" : s >= 60 ? "primary" : "warning");
-export const scoreText = (s: number) => (s >= 80 ? "text-success" : s >= 60 ? "text-primary" : "text-warning");
+export const scoreText = (s: number) =>
+  s >= 80 ? "text-success" : s >= 60 ? "text-primary" : "text-warning";
 
 // ── Score ring ────────────────────────────────────────────────────────
 export function ScoreRing({ score, size = 112 }: { score: number; size?: number }) {
@@ -331,20 +418,32 @@ export function ScoreRing({ score, size = 112 }: { score: number; size?: number 
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={10} className="fill-none stroke-border" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          strokeWidth={10}
+          className="fill-none stroke-border"
+        />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
           strokeWidth={10}
           strokeLinecap="round"
-          className={cn("fill-none transition-[stroke-dashoffset] duration-[600ms] ease-out", stroke)}
+          className={cn(
+            "fill-none transition-[stroke-dashoffset] duration-[600ms] ease-out",
+            stroke,
+          )}
           strokeDasharray={c}
           strokeDashoffset={c - (c * v) / 100}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <CountUp value={score} className={cn("font-display text-3xl font-extrabold", scoreText(score))} />
+        <CountUp
+          value={score}
+          className={cn("font-display text-3xl font-extrabold", scoreText(score))}
+        />
         <span className="caption">/ 100</span>
       </div>
     </div>
@@ -361,7 +460,12 @@ export function Gauge({ pct }: { pct: number }) {
   return (
     <div className="flex flex-col items-center">
       <svg width={170} height={95} viewBox="0 0 170 95">
-        <path d="M15 85 A70 70 0 0 1 155 85" strokeWidth={12} className="fill-none stroke-border" strokeLinecap="round" />
+        <path
+          d="M15 85 A70 70 0 0 1 155 85"
+          strokeWidth={12}
+          className="fill-none stroke-border"
+          strokeLinecap="round"
+        />
         <path
           d="M15 85 A70 70 0 0 1 155 85"
           strokeWidth={12}
@@ -370,7 +474,12 @@ export function Gauge({ pct }: { pct: number }) {
           strokeDasharray={len}
           strokeDashoffset={len - (len * p) / 100}
         />
-        <text x="85" y="72" textAnchor="middle" className="fill-foreground font-display text-2xl font-extrabold">
+        <text
+          x="85"
+          y="72"
+          textAnchor="middle"
+          className="fill-foreground font-display text-2xl font-extrabold"
+        >
           {Math.round(p)}%
         </text>
       </svg>
@@ -379,7 +488,15 @@ export function Gauge({ pct }: { pct: number }) {
   );
 }
 
-export function CheckBox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function CheckBox({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
   return (
     <button
       role="checkbox"
@@ -403,13 +520,23 @@ export function CheckBox({ checked, onChange, label }: { checked: boolean; onCha
   );
 }
 
-export function Chip({ active, onClick, children }: { active?: boolean; onClick?: () => void; children: ReactNode }) {
+export function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active?: boolean;
+  onClick?: () => void;
+  children: ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
       className={cn(
         "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium capitalize focus-visible:ring-2 focus-visible:ring-primary",
-        active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground",
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-foreground",
       )}
     >
       {children}
@@ -418,6 +545,15 @@ export function Chip({ active, onClick, children }: { active?: boolean; onClick?
 }
 
 export const fmtDate = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
+  s
+    ? new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    : "—";
 export const fmtDateTime = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
+  s
+    ? new Date(s).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "—";

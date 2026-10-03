@@ -17,7 +17,10 @@ export const Route = createFileRoute("/_auth/verify-otp")({
   head: () => ({
     meta: [
       { title: "Verify email — TalentPilot" },
-      { name: "description", content: "Enter the 6-digit code we emailed you to verify your TalentPilot account." },
+      {
+        name: "description",
+        content: "Enter the 6-digit code we emailed you to verify your TalentPilot account.",
+      },
       { property: "og:title", content: "Verify email — TalentPilot" },
       { property: "og:description", content: "Enter the 6-digit code we emailed you." },
     ],
@@ -55,8 +58,13 @@ function VerifyOtpPage() {
       if (err instanceof ApiError) {
         if (err.code === "OTP_INVALID") {
           const r = Number(err.details?.["remaining"]);
-          setError(Number.isFinite(r) ? `Incorrect code. ${r} attempt${r === 1 ? "" : "s"} left.` : "Incorrect code.");
-        } else if (err.code === "OTP_EXPIRED") setError("This code has expired. Request a new one.");
+          setError(
+            Number.isFinite(r)
+              ? `Incorrect code. ${r} attempt${r === 1 ? "" : "s"} left.`
+              : "Incorrect code.",
+          );
+        } else if (err.code === "OTP_EXPIRED")
+          setError("This code has expired. Request a new one.");
         else if (err.code === "OTP_MAX_ATTEMPTS") {
           setLocked(true);
           setError("Too many attempts. Request a new code.");
@@ -75,7 +83,8 @@ function VerifyOtpPage() {
       setError(null);
       toast.success("New code sent");
     } catch (err) {
-      if (err instanceof ApiError && (err.code === "OTP_COOLDOWN" || err.status === 429)) setCooldown(retryAfter(err));
+      if (err instanceof ApiError && (err.code === "OTP_COOLDOWN" || err.status === 429))
+        setCooldown(retryAfter(err));
       else toast.error(friendlyError(err));
     }
   };
@@ -102,14 +111,32 @@ function VerifyOtpPage() {
           placeholder="••••••"
           className="h-14 w-full rounded-xl border border-input bg-card text-center font-display text-2xl font-bold tracking-[0.5em] text-foreground placeholder:text-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
         />
-        {error && <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-        <Button type="submit" size="full" loading={loading} disabled={locked || code.length !== 6}>Verify</Button>
-        <Button type="button" variant="secondary" size="full" onClick={resend} disabled={cooldown > 0}>
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {error}
+          </p>
+        )}
+        <Button type="submit" size="full" loading={loading} disabled={locked || code.length !== 6}>
+          Verify
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="full"
+          onClick={resend}
+          disabled={cooldown > 0}
+        >
           {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
         </Button>
       </form>
       <p className="body-text mt-auto pb-6 pt-10 text-center">
-        Wrong email? <Link to="/register" className="font-semibold text-primary">Start over</Link>
+        Wrong email?{" "}
+        <Link to="/register" className="font-semibold text-primary">
+          Start over
+        </Link>
       </p>
     </div>
   );

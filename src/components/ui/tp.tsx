@@ -1,4 +1,11 @@
-import { forwardRef, useEffect, type HTMLAttributes, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
+import {
+  forwardRef,
+  useEffect,
+  type HTMLAttributes,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -46,10 +53,16 @@ const buttonVariants = cva(
   },
 );
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & VariantProps<typeof buttonVariants> & { loading?: boolean | undefined };
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
+  VariantProps<typeof buttonVariants> & { loading?: boolean | undefined };
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, loading, children, disabled, ...p }, ref) => (
-    <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} disabled={disabled || loading} {...p}>
+    <button
+      ref={ref}
+      className={cn(buttonVariants({ variant, size }), className)}
+      disabled={disabled || loading}
+      {...p}
+    >
       {loading && <Loader2 className="h-4 w-4 animate-spin" />}
       {children}
     </button>
@@ -58,56 +71,79 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 // ── Input ──────────────────────────────────────────────────────────────
-type InputProps = InputHTMLAttributes<HTMLInputElement> & { label?: string | undefined; error?: string | undefined; hint?: string | undefined };
-export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, error, hint, className, id, ...p }, ref) => {
-  const inputId = id ?? p.name;
-  return (
-    <div className="space-y-1.5">
-      {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-foreground">
-          {label}
-        </label>
-      )}
-      <input
-        ref={ref}
-        id={inputId}
-        aria-invalid={!!error}
-        className={cn(
-          "h-11 w-full rounded-lg border border-input bg-card px-3 text-base text-foreground placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary",
-          error && "border-destructive focus:ring-destructive/20 focus:border-destructive",
-          className,
+type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+  label?: string | undefined;
+  error?: string | undefined;
+  hint?: string | undefined;
+};
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ label, error, hint, className, id, ...p }, ref) => {
+    const inputId = id ?? p.name;
+    return (
+      <div className="space-y-1.5">
+        {label && (
+          <label htmlFor={inputId} className="text-sm font-medium text-foreground">
+            {label}
+          </label>
         )}
-        {...p}
-      />
-      {error ? <p className="text-xs text-destructive">{error}</p> : hint ? <p className="caption">{hint}</p> : null}
-    </div>
-  );
-});
+        <input
+          ref={ref}
+          id={inputId}
+          aria-invalid={!!error}
+          className={cn(
+            "h-11 w-full rounded-lg border border-input bg-card px-3 text-base text-foreground placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary",
+            error && "border-destructive focus:ring-destructive/20 focus:border-destructive",
+            className,
+          )}
+          {...p}
+        />
+        {error ? (
+          <p className="text-xs text-destructive">{error}</p>
+        ) : hint ? (
+          <p className="caption">{hint}</p>
+        ) : null}
+      </div>
+    );
+  },
+);
 Input.displayName = "Input";
 
 // ── Card ───────────────────────────────────────────────────────────────
 export function Card({ className, children, ...p }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm", className)} {...p}>
+    <div
+      className={cn(
+        "rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm",
+        className,
+      )}
+      {...p}
+    >
       {children}
     </div>
   );
 }
 
 // ── Badge ──────────────────────────────────────────────────────────────
-const badgeVariants = cva("inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium", {
-  variants: {
-    tone: {
-      primary: "bg-primary/10 text-primary",
-      success: "bg-success/10 text-success",
-      warning: "bg-warning/10 text-warning",
-      danger: "bg-destructive/10 text-destructive",
-      neutral: "bg-muted-foreground/10 text-muted-foreground",
+const badgeVariants = cva(
+  "inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium",
+  {
+    variants: {
+      tone: {
+        primary: "bg-primary/10 text-primary",
+        success: "bg-success/10 text-success",
+        warning: "bg-warning/10 text-warning",
+        danger: "bg-destructive/10 text-destructive",
+        neutral: "bg-muted-foreground/10 text-muted-foreground",
+      },
     },
+    defaultVariants: { tone: "neutral" },
   },
-  defaultVariants: { tone: "neutral" },
-});
-export function Badge({ tone, className, children }: VariantProps<typeof badgeVariants> & { className?: string; children: ReactNode }) {
+);
+export function Badge({
+  tone,
+  className,
+  children,
+}: VariantProps<typeof badgeVariants> & { className?: string; children: ReactNode }) {
   return <span className={cn(badgeVariants({ tone }), className)}>{children}</span>;
 }
 
@@ -130,7 +166,11 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center px-6 py-12 text-center">
-      {icon && <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-accent-foreground">{icon}</div>}
+      {icon && (
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+          {icon}
+        </div>
+      )}
       <h3 className="h3">{title}</h3>
       {description && <p className="body-text mt-1 max-w-xs">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
@@ -162,27 +202,39 @@ export function BottomSheet({
   }, [open, onClose]);
   return (
     <AnimatePresence>
-    {open && (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
-      <motion.button aria-label="Close" className="absolute inset-0 bg-overlay" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
-      <motion.div
-        className="pb-safe relative w-full max-w-lg rounded-t-2xl bg-card shadow-[var(--shadow-sheet)]"
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 400, damping: 35 }}
-      >
-        <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-border" />
-        <div className="flex items-center justify-between px-4 pt-3">
-          <h2 className="h3">{title}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="h-5 w-5" />
-          </Button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          role="dialog"
+          aria-modal="true"
+        >
+          <motion.button
+            aria-label="Close"
+            className="absolute inset-0 bg-overlay"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          />
+          <motion.div
+            className="pb-safe relative w-full max-w-lg rounded-t-2xl bg-card shadow-[var(--shadow-sheet)]"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+          >
+            <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-border" />
+            <div className="flex items-center justify-between px-4 pt-3">
+              <h2 className="h3">{title}</h2>
+              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="max-h-[75vh] overflow-y-auto px-4 pb-6">{children}</div>
+          </motion.div>
         </div>
-        <div className="max-h-[75vh] overflow-y-auto px-4 pb-6">{children}</div>
-      </motion.div>
-    </div>
-    )}
+      )}
     </AnimatePresence>
   );
 }
