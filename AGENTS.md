@@ -19,3 +19,9 @@
 - Never delete android/ or .github/workflows/android-apk.yml — they're the committed native project and APK workflow.
 - Never change webDir ("dist/client"), the build:mobile script, vite.config.mobile.ts, or the android/ folder — the user has confirmed these are fixed.
 - Dependencies must stay recorded in package.json and bun.lock — CI runs bun install --frozen-lockfile, so use bun add/remove rather than manual edits.
+
+## Live updates (do not break)
+- Keep UpdateSheets mounted in src/routes/__root.tsx — it calls notifyAppReady(); without it the updater rolls back the bundle.
+- Keep CapacitorUpdater { autoUpdate: false } in capacitor.config.ts and never add server.url — updates are manual, staged for next cold start.
+- Never remove src/lib/updates.ts, the Me-screen version/update rows, or @capgo/capacitor-updater — they are the self-update path for sideloaded installs.
+- Adding/upgrading a Capacitor plugin triggers a native APK release — avoid casual native dependency changes.
