@@ -104,4 +104,23 @@ describe("Root route never blanks", () => {
     await waitFor(() => expect(container.textContent?.length ?? 0).toBeGreaterThan(0));
     await waitFor(() => expect(banner()?.textContent).toMatch(/can't reach/i));
   });
+
+  it("clears the offline notice when connectivity returns", async () => {
+    // Start offline: no stored session, browser reports no network.
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    act(() => onlineStore.set(false));
+    const { container } = renderRoot("/login");
+    await waitFor(() => expect(container.textContent?.length ?? 0).toBeGreaterThan(0));
+    await waitFor(() => expect(banner()?.textContent).toMatch(/offline/i));
+
+    // Connectivity returns: the browser fires "online" and reports onLine again.
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+    act(() => {
+      onlineStore.set(true);
+      window.dispatchEvent(new Event("online"));
+    });
+    await waitFor(() => expect(banner()).toBeNull());
+    // The screen still has content after the notice clears.
+    expect(container.textContent?.length ?? 0).toBeGreaterThan(0);
+  });
 });
