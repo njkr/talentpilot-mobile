@@ -22,7 +22,7 @@ import "@fontsource/plus-jakarta-sans/700.css";
 import "@fontsource/plus-jakarta-sans/800.css";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider, useAuth } from "../lib/auth";
+import { AuthProvider, useAuth, useAuthOptional } from "../lib/auth";
 import { useOnline } from "../lib/stores";
 import { NativeBridge } from "../components/GlobalSheets";
 import { UpdateSheets } from "../components/UpdateSheets";
@@ -138,7 +138,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function OfflineBanner() {
   const online = useOnline();
-  const { offline } = useAuth();
+  const offline = useAuthOptional()?.offline ?? false;
   if (online && !offline) return null;
   return (
     <div className="pt-safe fixed inset-x-0 top-0 z-[60] bg-warning text-center text-xs font-medium text-foreground">

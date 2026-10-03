@@ -3,8 +3,12 @@ import { LineChart, Plus } from "lucide-react";
 import { z } from "zod";
 import { qk, useList } from "@/lib/queries";
 import { openNewAnalysis } from "@/lib/stores";
-import { AnalysisSubtitle, Chip, flat, InfiniteList, scoreText } from "@/components/app";
+import { useState } from "react";
+import { AnalysisSubtitle, bandOf, Chip, flat, InfiniteList, ListSearch, matches, scoreText } from "@/components/app";
 import { Button, Card, EmptyState } from "@/components/ui/tp";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import type { AtsReport } from "@/types/api";
 import { WsStatusBadge } from "@/lib/resumeUi";
 import { cn } from "@/lib/utils";
 import type { Workspace, WorkspaceStatus } from "@/types/api";
@@ -35,7 +39,9 @@ function AnalysesPage() {
   const nav = useNavigate();
   const q = useList<Workspace>(qk.workspaces, "/workspaces");
   const allowed = FILTERS[filter] as readonly WorkspaceStatus[] | null;
-  const items = flat(q.data).filter((w) => !allowed || allowed.includes(w.status));
+  const all = flat(q.data);
+  const [term, setTerm] = useState("");
+  const items = all.filter((w) => (!allowed || allowed.includes(w.status)) && matches(term, w.name));
 
   return (
     <div>
@@ -52,6 +58,7 @@ function AnalysesPage() {
           </Chip>
         ))}
       </div>
+      {all.length > 6 && <ListSearch value={term} onChange={setTerm} placeholder="Search analyses" />}
       <InfiniteList
         q={q}
         items={items}
@@ -83,25 +90,33 @@ function AnalysesPage() {
                   <AnalysisSubtitle workspaceId={w.id} resumeId={w.resumeId} date={w.createdAt} />
                 </span>
               </span>
-              {w.overallScore != null && (
-                <span
-                  className={cn("font-display text-xl font-extrabold", scoreText(w.overallScore))}
-                >
-                  {Math.round(w.overallScore)}
-                </span>
-              )}
+              {w.overallScore != null && <ScoreCell wsId={w.id} score={w.overallScore} />}
             </Card>
           </Link>
         )}
       />
-      {!q.isPending && items.length > 0 && (
-        <Button
-          onClick={() => openNewAnalysis()}
-          className="fab-bottom fixed right-4 z-20 h-14 rounded-full px-5 shadow-lg sm:right-[calc(50%-15rem)]"
-        >
-          <Plus className="h-5 w-5" /> New analysis
-        </Button>
-      )}
     </div>
+  );
+}
+
+/** Score + band + delta vs original (delta from the cached/lazily fetched report). */
+function ScoreCell({ wsId, score }: { wsId: string; score: number }) {
+  const r = useQuery({
+    queryKey: ["workspace", wsId, "report"],
+    queryFn: () => api.get<AtsReport>(`/workspaces/${wsId}/report`),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const delta = r.data?.original ? Math.round(r.data.overallScore - r.data.original.overallScore) : 0;
+  return (
+    <span className="flex shrink-0 flex-col items-end text-right">
+      <span className={cn("font-display text-xl font-extrabold leading-tight", scoreText(score))}>{Math.round(score)}</span>
+      <span className="caption whitespace-nowrap">{bandOf(score)} match</span>
+      {delta !== 0 && (
+        <span className={cn("whitespace-nowrap text-xs font-semibold", delta > 0 ? "text-success" : "text-destructive")}>
+          {delta > 0 ? `▲ +${delta}` : `▼ ${delta}`}
+        </span>
+      )}
+    </span>
   );
 }

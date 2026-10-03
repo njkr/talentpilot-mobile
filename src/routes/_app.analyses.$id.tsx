@@ -19,7 +19,7 @@ import {
 } from "@/components/app";
 import { Card } from "@/components/ui/tp";
 import { FailedView, ProgressView } from "@/components/analysis/Progress";
-import { Results, TABS, type Tab } from "@/components/analysis/Results";
+import { Results, toTab, type Tab } from "@/components/analysis/Results";
 import { WsStatusBadge } from "@/lib/resumeUi";
 import { displayPosition } from "@/components/GlobalSheets";
 import type {
@@ -33,7 +33,7 @@ import type {
 } from "@/types/api";
 
 export const Route = createFileRoute("/_app/analyses/$id")({
-  validateSearch: z.object({ tab: z.enum(TABS).optional(), run: z.string().optional() }),
+  validateSearch: z.object({ tab: z.string().optional().transform((v) => toTab(v)), run: z.string().optional() }),
   head: () => ({
     meta: [
       { title: "Analysis — TalentPilot" },
@@ -122,7 +122,7 @@ function AnalysisDetail() {
       <Results
         wsId={id}
         resumeId={w.resumeId}
-        tab={search.tab ?? "report"}
+        tab={search.tab ?? "improve"}
         setTab={(t) => setSearch({ tab: t, run: search.run })}
       />
     );
@@ -145,7 +145,7 @@ function AnalysisDetail() {
         }}
         onViewResults={
           run.data.status === "partial"
-            ? () => setSearch({ tab: "report", run: search.run })
+            ? () => setSearch({ tab: "improve", run: search.run })
             : undefined
         }
       />

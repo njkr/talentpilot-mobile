@@ -16,6 +16,8 @@ import { useOnline } from "@/lib/stores";
 import { cn } from "@/lib/utils";
 import { BottomSheet, Button, Card, Skeleton } from "@/components/ui/tp";
 import { CountUp, FadeUp, Triangle, useFirstLoad } from "@/components/motion";
+import { motion, useMotionValue, useTransform, animate, type PanInfo } from "framer-motion";
+import { Search, Trash2, X as XIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { qk } from "@/lib/queries";
@@ -412,24 +414,24 @@ export function ScoreRing({ score, size = 112 }: { score: number; size?: number 
     const t = setTimeout(() => setV(score), 50);
     return () => clearTimeout(t);
   }, [score]);
-  const r = (size - 12) / 2;
+  const r = (size - (size < 80 ? 8 : 12)) / 2;
   const c = 2 * Math.PI * r;
   const stroke = score >= 80 ? "stroke-success" : score >= 60 ? "stroke-primary" : "stroke-warning";
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
-          strokeWidth={10}
+          strokeWidth={size < 80 ? 6 : 10}
           className="fill-none stroke-border"
         />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
-          strokeWidth={10}
+          strokeWidth={size < 80 ? 6 : 10}
           strokeLinecap="round"
           className={cn(
             "fill-none transition-[stroke-dashoffset] duration-[600ms] ease-out",
@@ -442,9 +444,14 @@ export function ScoreRing({ score, size = 112 }: { score: number; size?: number 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <CountUp
           value={score}
-          className={cn("font-display text-3xl font-extrabold", scoreText(score))}
+          className={cn("font-display font-extrabold leading-none", scoreText(score))}
+          style={{ fontSize: Math.round(size * (size < 80 ? 0.32 : 0.27)) }}
         />
-        <span className="caption">/ 100</span>
+        {size >= 80 && (
+          <span className="text-muted-foreground" style={{ fontSize: Math.round(size * 0.11) }}>
+            / 100
+          </span>
+        )}
       </div>
     </div>
   );
@@ -557,3 +564,81 @@ export const fmtDateTime = (s: string | null | undefined) =>
         minute: "2-digit",
       })
     : "—";
+
+// ── Match band (Low / Fair / Strong) ──────────────────────────────────
+export const bandOf = (s: number) => (s >= 70 ? "Strong" : s >= 35 ? "Fair" : "Low");
+export const bandTone = (s: number) => (s >= 70 ? "success" : s >= 35 ? "primary" : "warning");
+
+// ── Swipe-left-to-delete row ──────────────────────────────────────────
+export function SwipeToDelete({ onDelete, children }: { onDelete: () => void; children: ReactNode }) {
+  const x = useMotionValue(0);
+  const reveal = 88;
+  const opacity = useTransform(x, [-reveal, -16, 0], [1, 0.4, 0]);
+  const [open, setOpen] = useState(false);
+  const end = (_: unknown, info: PanInfo) => {
+    const o = info.offset.x < -reveal / 2;
+    setOpen(o);
+    void animate(x, o ? -reveal : 0, { type: "spring", stiffness: 500, damping: 40 });
+  };
+  return (
+    <div className="relative overflow-hidden rounded-xl">
+      <motion.button
+        style={{ opacity }}
+        onClick={() => {
+          void animate(x, 0);
+          setOpen(false);
+          onDelete();
+        }}
+        tabIndex={open ? 0 : -1}
+        aria-hidden={!open}
+        className="absolute inset-y-0 right-0 flex w-[88px] flex-col items-center justify-center gap-1 bg-destructive text-xs font-semibold text-destructive-foreground"
+      >
+        <Trash2 className="h-5 w-5" /> Delete
+      </motion.button>
+      <motion.div
+        drag="x"
+        dragDirectionLock
+        dragConstraints={{ left: -reveal, right: 0 }}
+        dragElastic={0.1}
+        style={{ x, touchAction: "pan-y" }}
+        onDragEnd={end}
+        onClickCapture={(e) => {
+          if (open) {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen(false);
+            void animate(x, 0);
+          }
+        }}
+        className="relative bg-background"
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Client-side search (shown when a list has more than 6 items) ──────
+export function ListSearch({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <label className="mb-3 flex min-h-11 items-center gap-2 rounded-lg border border-input bg-card px-3 focus-within:ring-2 focus-within:ring-primary">
+      <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className="min-w-0 flex-1 bg-transparent py-2 text-base outline-none"
+      />
+      {value && (
+        <button onClick={() => onChange("")} aria-label="Clear search" className="text-muted-foreground">
+          <XIcon className="h-4 w-4" />
+        </button>
+      )}
+    </label>
+  );
+}
+export const matches = (q: string, ...fields: (string | null | undefined)[]) => {
+  const t = q.trim().toLowerCase();
+  return !t || fields.some((f) => f?.toLowerCase().includes(t));
+};

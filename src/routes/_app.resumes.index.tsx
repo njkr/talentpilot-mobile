@@ -15,7 +15,10 @@ import {
   flat,
   fmtDate,
   InfiniteList,
+  ListSearch,
+  matches,
   ProgressBar,
+  SwipeToDelete,
 } from "@/components/app";
 import { BottomSheet, Button, Card, EmptyState, Input } from "@/components/ui/tp";
 import {
@@ -52,7 +55,9 @@ function ResumesPage() {
   const [del, setDel] = useState<Resume | null>(null);
   const [inUse, setInUse] = useState<ResumeInUseDetails["workspaces"] | null>(null);
   const online = useOnline();
-  const items = flat(q.data);
+  const all = flat(q.data);
+  const [term, setTerm] = useState("");
+  const items = all.filter((r) => matches(term, r.title));
   const inval = () => {
     void qc.invalidateQueries({ queryKey: qk.resumes });
     void qc.invalidateQueries({ queryKey: qk.dashboard });
@@ -142,8 +147,10 @@ function ResumesPage() {
           <ProgressBar value={progress} />
         </Card>
       )}
+      {all.length > 6 && <ListSearch value={term} onChange={setTerm} placeholder="Search resumes" />}
       <InfiniteList
         q={q}
+        items={items}
         skeleton={
           <div className="space-y-3">
             {[0, 1, 2, 3].map((i) => (
@@ -164,6 +171,7 @@ function ResumesPage() {
           />
         }
         render={(r) => (
+          <SwipeToDelete onDelete={() => setDel(r)}>
           <Card key={r.id} className="flex min-h-14 items-center gap-3 p-3">
             <Link
               to="/resumes/$id"
@@ -210,18 +218,10 @@ function ResumesPage() {
               ]}
             />
           </Card>
+          </SwipeToDelete>
         )}
       />
 
-      {!q.isPending && items.length > 0 && (
-        <Button
-          onClick={() => fileRef.current?.click()}
-          disabled={upload.isPending || !online}
-          className="fab-bottom fixed right-4 z-20 h-14 rounded-full px-5 shadow-lg sm:right-[calc(50%-15rem)]"
-        >
-          <Upload className="h-5 w-5" /> Upload
-        </Button>
-      )}
 
       <BottomSheet open={!!rename} onClose={() => setRename(null)} title="Rename resume">
         <div className="space-y-3">

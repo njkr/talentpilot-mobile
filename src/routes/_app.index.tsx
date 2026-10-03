@@ -22,7 +22,11 @@ import {
 } from "@/components/app";
 import { Badge, Button, Card, EmptyState } from "@/components/ui/tp";
 import { cn } from "@/lib/utils";
-import type { DashboardOverview } from "@/types/api";
+import type { DashboardOverview, JobDescription, Profile, ResumeVersion, Suggestion, Workspace } from "@/types/api";
+import type { ReactNode } from "react";
+import { Check, Loader2 } from "lucide-react";
+import { openNewAnalysis } from "@/lib/stores";
+import { ScoreRing } from "@/components/app";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({
@@ -53,6 +57,11 @@ function HomePage() {
     queryFn: () => api.get<DashboardOverview>("/dashboard"),
   });
   const nav = useNavigate();
+  const profile = useQuery({ queryKey: qk.profile, queryFn: () => api.get<Profile>("/profiles/me") });
+  const jobs = useQuery({
+    queryKey: ["jobs", "any"],
+    queryFn: () => api.list<JobDescription>("/job-descriptions", { limit: 1 }),
+  });
 
   const go = (it: Item) => {
     const id = it.workspaceId ?? wsIdFrom(it.href);
@@ -63,7 +72,7 @@ function HomePage() {
           : nav({ to: "/analyses", search: { filter: "failed" } });
       case "pending_suggestions":
         return id
-          ? nav({ to: "/analyses/$id", params: { id }, search: { tab: "suggestions" } })
+          ? nav({ to: "/analyses/$id", params: { id }, search: { tab: "improve" } })
           : nav({ to: "/analyses", search: { filter: "complete" } });
       case "low_credits":
         return nav({ to: "/billing" });
@@ -85,163 +94,42 @@ function HomePage() {
     );
   if (q.isError && !q.data) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
   const d = q.data;
+  const newUser = d.resumes.count === 0 || d.workspaces.total === 0;
+  void jobs;
 
   return (
     <PullToRefresh onRefresh={() => q.refetch()}>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="h1">Home</h1>
-          <Badge tone="primary">{d.plan.name}</Badge>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="h1 min-w-0 break-words">{greeting(profile.data?.firstName)}</h1>
+          <Badge tone="primary" className="mt-1 shrink-0">
+            {d.plan.name}
+          </Badge>
         </div>
 
-        {d.resumes.count === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<FileText className="h-7 w-7" />}
-              title="Upload your resume"
-              description="Start by uploading a PDF or DOCX. We'll read it and get it ready to match against jobs."
-              action={
-                <Button onClick={() => void nav({ to: "/resumes", search: { upload: true } })}>
-                  <Upload className="h-4 w-4" /> Upload your resume
-                </Button>
-              }
-            />
-          </Card>
-        ) : null}
+        {newUser ? <GetStarted d={d} /> : d.workspaces.recent[0] ? <Hero w={d.workspaces.recent[0]} /> : null}
 
-        {d.actionItems.length > 0 && (
-          <section className="space-y-2">
-            {d.actionItems.map((it, i) => (
-              <button
-                key={i}
-                onClick={() => void go(it)}
-                className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left"
-              >
-                <span
-                  className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                    it.priority === "high"
-                      ? "bg-destructive/10 text-destructive"
-                      : it.priority === "medium"
-                        ? "bg-warning/10 text-warning"
-                        : "bg-accent text-primary",
-                  )}
-                >
-                  {it.kind === "low_credits" ? (
-                    <Zap className="h-5 w-5" />
-                  ) : it.kind === "incomplete_profile" ? (
-                    <UserRound className="h-5 w-5" />
-                  ) : it.kind === "failed_run" ? (
-                    <AlertTriangle className="h-5 w-5" />
-                  ) : (
-                    <Sparkles className="h-5 w-5" />
-                  )}
-                </span>
-                <span className="flex-1 text-sm font-medium">{it.label}</span>
-                <ChevronRight className="h-4 w-4 text-subtle" />
-              </button>
-            ))}
-          </section>
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
-          <Card>
-            <p className="caption">Credits</p>
-            <p className="font-display text-2xl font-bold">
-              <CountUp value={d.creditInsight.balance} />
-            </p>
-            <p className="caption mt-1">~{d.creditInsight.runsRemaining} analyses left</p>
-            {d.creditInsight.spentLast30Days > 0 || d.creditInsight.grantedLast30Days > 0 ? (
-              <p className="caption">
-                {[
-                  d.creditInsight.spentLast30Days > 0
-                    ? `−${d.creditInsight.spentLast30Days}`
-                    : null,
-                  d.creditInsight.grantedLast30Days > 0
-                    ? `+${d.creditInsight.grantedLast30Days}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" / ")}{" "}
-                · last 30 days
-              </p>
-            ) : (
-              <p className="caption">No credit activity in the last 30 days</p>
+        <div className="grid grid-cols-3 gap-2">
+          <Stat to="/billing" label="Credits">
+            <CountUp value={d.creditInsight.balance} />
+          </Stat>
+          <Stat to="/analyses" label="Latest score">
+            <span className={cn(d.scoreInsight.latestScore != null && scoreText(d.scoreInsight.latestScore))}>
+              {d.scoreInsight.latestScore != null ? Math.round(d.scoreInsight.latestScore) : "—"}
+            </span>
+            {d.scoreInsight.trend.length > 1 && (
+              <span className="mt-1 block h-6 w-full" aria-hidden>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={d.scoreInsight.trend}>
+                    <Line type="monotone" dataKey="score" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </span>
             )}
-          </Card>
-          <Card>
-            <p className="caption">Score trend</p>
-            <p
-              className={cn(
-                "font-display text-2xl font-bold",
-                d.scoreInsight.latestScore != null && scoreText(d.scoreInsight.latestScore),
-              )}
-            >
-              {d.scoreInsight.latestScore ?? "—"}
-            </p>
-            {d.scoreInsight.trend.length > 1 ? (
-              <>
-                <div className="h-12">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={d.scoreInsight.trend}>
-                      <Line
-                        type="monotone"
-                        dataKey="score"
-                        stroke="var(--primary)"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <p className="caption mt-1">
-                  Best {d.scoreInsight.bestScore ?? "—"} · Avg{" "}
-                  {d.scoreInsight.averageScore != null
-                    ? Math.round(d.scoreInsight.averageScore)
-                    : "—"}
-                </p>
-              </>
-            ) : (
-              <p className="caption mt-1">Run more analyses to see your trend</p>
-            )}
-          </Card>
-          {d.activity.some((a) => a.runs > 0) && (
-            <Card>
-              <p className="caption">Activity (14 days)</p>
-              <div className="mt-2 flex h-12 items-end gap-0.5">
-                {(() => {
-                  const max = Math.max(1, ...d.activity.map((a) => a.runs));
-                  return d.activity.map((a) => (
-                    <div
-                      key={a.date}
-                      title={`${a.date}: ${a.runs}`}
-                      className="flex-1 rounded-sm bg-primary/80"
-                      style={{
-                        height: `${Math.max(6, (a.runs / max) * 100)}%`,
-                        opacity: a.runs ? 1 : 0.2,
-                      }}
-                    />
-                  ));
-                })()}
-              </div>
-            </Card>
-          )}
-          <Card className={d.activity.some((a) => a.runs > 0) ? undefined : "col-span-2"}>
-            <p className="caption">Totals</p>
-            <div className="mt-1 space-y-0.5 text-sm">
-              <p>
-                <b>{d.resumes.count}</b>
-                {d.resumes.limit != null ? `/${d.resumes.limit}` : ""} resumes
-              </p>
-              <p>
-                <b>{d.workspaces.total}</b> analyses
-              </p>
-              <p className="caption">
-                {d.workspaces.completed} done · {d.workspaces.processing} running ·{" "}
-                {d.workspaces.failed} failed
-              </p>
-            </div>
-          </Card>
+          </Stat>
+          <Stat to="/analyses" label="Analyses">
+            {d.workspaces.total}
+          </Stat>
         </div>
 
         <section>
@@ -297,5 +185,141 @@ function HomePage() {
         )}
       </div>
     </PullToRefresh>
+  );
+}
+
+function greeting(name?: string | null) {
+  const h = new Date().getHours();
+  const part = h < 12 ? "morning" : h < 18 ? "afternoon" : "evening";
+  return `Good ${part}${name?.trim() ? `, ${name.trim()}` : ""}`;
+}
+
+function Stat({ to, label, children }: { to: "/billing" | "/analyses"; label: string; children: ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-3 focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <span className="caption truncate">{label}</span>
+      <span className="font-display text-xl font-bold leading-tight break-words">{children}</span>
+    </Link>
+  );
+}
+
+type Recent = DashboardOverview["workspaces"]["recent"][number];
+const RUNNING = new Set(["queued", "processing", "running"]);
+
+/** Latest analysis with ONE primary action picked from its state. */
+function Hero({ w }: { w: Recent }) {
+  const done = w.status === "completed" || w.status === "partial";
+  const pending = useQuery({
+    queryKey: ["workspace", w.id, "sug-pending"],
+    queryFn: () => api.get<Suggestion[]>(`/workspaces/${w.id}/suggestions?status=pending`),
+    enabled: done,
+  });
+  const ws = useQuery({
+    queryKey: qk.workspace(w.id),
+    queryFn: () => api.get<Workspace>(`/workspaces/${w.id}`),
+    enabled: done,
+  });
+  const versions = useQuery({
+    queryKey: qk.versions(ws.data?.resumeId ?? ""),
+    queryFn: () => api.get<ResumeVersion[]>(`/resumes/${ws.data!.resumeId}/versions`),
+    enabled: done && !!ws.data?.resumeId,
+  });
+  const n = pending.data?.length ?? 0;
+  const latest = Math.max(0, ...(versions.data ?? []).map((v) => v.version));
+  const needsRescore = ws.data?.analyzedResumeVersion != null && latest > ws.data.analyzedResumeVersion;
+
+  let cta: ReactNode;
+  if (RUNNING.has(w.status))
+    cta = (
+      <HeroLink id={w.id}>
+        <Loader2 className="h-4 w-4 animate-spin" /> View progress
+      </HeroLink>
+    );
+  else if (n > 0) cta = <HeroLink id={w.id} tab="improve">Review {n} suggestion{n === 1 ? "" : "s"}</HeroLink>;
+  else if (needsRescore) cta = <HeroLink id={w.id} tab="improve">Recalculate score</HeroLink>;
+  else cta = <HeroLink id={w.id}>Open analysis</HeroLink>;
+
+  return (
+    <Card className="space-y-3">
+      <div className="flex items-center gap-3">
+        {w.score != null ? (
+          <ScoreRing score={Math.round(w.score)} size={56} />
+        ) : (
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent text-primary">
+            <Sparkles className="h-6 w-6" />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="caption">Latest analysis</p>
+          <p className="truncate font-semibold">{w.name}</p>
+          <AnalysisSubtitle workspaceId={w.id} date={w.updatedAt} fallback={w.status} />
+        </div>
+      </div>
+      {cta}
+    </Card>
+  );
+}
+function HeroLink({ id, tab, children }: { id: string; tab?: "improve"; children: ReactNode }) {
+  return (
+    <Link
+      to="/analyses/$id"
+      params={{ id }}
+      search={tab ? { tab } : {}}
+      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-center font-semibold text-primary-foreground hover:bg-primary-hover"
+    >
+      {children}
+    </Link>
+  );
+}
+
+/** Checklist for new users: Upload resume → Add a job → Run analysis. */
+function GetStarted({ d }: { d: DashboardOverview }) {
+  const nav = useNavigate();
+  const jobs = useQuery({
+    queryKey: ["jobs", "any"],
+    queryFn: () => api.list<JobDescription>("/job-descriptions", { limit: 1 }),
+  });
+  const steps = [
+    { label: "Upload resume", done: d.resumes.count > 0, action: "Upload", go: () => nav({ to: "/resumes", search: { upload: true } }) },
+    { label: "Add a job", done: (jobs.data?.data.length ?? 0) > 0 || d.workspaces.total > 0, action: "Add job", go: () => nav({ to: "/jobs/new" }) },
+    { label: "Run analysis", done: d.workspaces.total > 0, action: "Start", go: () => openNewAnalysis() },
+  ];
+  const next = steps.findIndex((s) => !s.done);
+  return (
+    <Card className="space-y-3">
+      <div>
+        <h2 className="h3">Get started</h2>
+        <p className="caption">Three steps to your first match score.</p>
+      </div>
+      <ol className="space-y-2">
+        {steps.map((s, i) => (
+          <li
+            key={s.label}
+            className={cn(
+              "flex min-h-14 items-center gap-3 rounded-lg p-2",
+              i === next ? "bg-accent" : undefined,
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+                s.done ? "bg-success text-success-foreground" : i === next ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {s.done ? <Check className="h-4 w-4" /> : i + 1}
+            </span>
+            <span className={cn("min-w-0 flex-1 font-medium", s.done && "text-muted-foreground line-through")}>{s.label}</span>
+            {i === next && (
+              <Button size="sm" onClick={() => void s.go()}>
+                {s.action}
+              </Button>
+            )}
+          </li>
+        ))}
+      </ol>
+    </Card>
   );
 }

@@ -6,7 +6,7 @@ import { API_BASE_URL } from "@/config";
 import { api, NGROK_QUERY } from "@/lib/api";
 import { qk } from "@/lib/queries";
 import { toastError } from "@/lib/errors";
-import { onAppResume } from "@/lib/native";
+import { haptic, onAppResume } from "@/lib/native";
 import { ActionButton, ProgressBar } from "@/components/app";
 import { Card } from "@/components/ui/tp";
 import { cn } from "@/lib/utils";
@@ -154,8 +154,10 @@ export function useRunStream(
           steps: { ...s.steps, [d.step]: d.willRetry ? "retrying" : "failed" },
         }));
       });
-      es.addEventListener("run.completed", () =>
-        update((s) => ({ ...s, status: "completed", progress: 100 })),
+      es.addEventListener("run.completed", () => {
+        haptic("success");
+        update((s) => ({ ...s, status: "completed", progress: 100 }));
+      },
       );
       es.addEventListener("run.failed", (e) => {
         const d = parse(e) as {
