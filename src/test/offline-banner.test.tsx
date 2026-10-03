@@ -87,10 +87,12 @@ function renderRoot(path: string) {
 
 describe("Root route never blanks", () => {
   it("renders with no stored session while the device is offline", async () => {
+    // The app re-reads connectivity from the browser on mount, so report it offline there.
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     act(() => onlineStore.set(false));
     const { container } = renderRoot("/login");
     await waitFor(() => expect(container.textContent?.length ?? 0).toBeGreaterThan(0));
-    expect(banner()?.textContent).toMatch(/offline/i);
+    await waitFor(() => expect(banner()?.textContent).toMatch(/offline/i));
   });
 
   it("renders with a stored session when the server is unreachable", async () => {
