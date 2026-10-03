@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { diffWords } from "diff";
+import { animate, motion, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import {
+  Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  X,
   Copy,
   ExternalLink,
   Loader2,
@@ -401,63 +408,72 @@ function ListCard({ title, items }: { title: string; items: string[] }) {
 }
 
 // ── Suggestions ───────────────────────────────────────────────────────
-function SuggestionsTab({ wsId, goReport }: { wsId: string; goReport: () => void }) {
+function SuggestionsTab({ wsId, rescore }: { wsId: string; rescore: Rescore }) {
   const qc = useQueryClient();
-  const get = (s: string) => api.get<Suggestion[]>(`/workspaces/${wsId}/suggestions?status=${s}`);
+  const get = (st: string) => api.get<Suggestion[]>(`/workspaces/${wsId}/suggestions?status=${st}`);
   const pending = useQuery({ queryKey: qk.ws(wsId, "sug-pending"), queryFn: () => get("pending") });
   const needs = useQuery({ queryKey: qk.ws(wsId, "sug-needs"), queryFn: () => get("needs_info") });
-  const accepted = useQuery({
-    queryKey: qk.ws(wsId, "sug-accepted"),
-    queryFn: () => get("accepted"),
-  });
-  const rejected = useQuery({
-    queryKey: qk.ws(wsId, "sug-rejected"),
-    queryFn: () => get("rejected"),
-  });
+  const accepted = useQuery({ queryKey: qk.ws(wsId, "sug-accepted"), queryFn: () => get("accepted") });
+  const rejected = useQuery({ queryKey: qk.ws(wsId, "sug-rejected"), queryFn: () => get("rejected") });
   const [sel, setSel] = useState<Set<string>>(new Set());
-  const [appliedBanner, setAppliedBanner] = useState(false);
   const inval = () =>
     ["sug-pending", "sug-needs", "sug-accepted", "sug-rejected"].forEach(
       (p) => void qc.invalidateQueries({ queryKey: qk.ws(wsId, p) }),
     );
 
-  const apply = useMutation({
-    mutationFn: (ids: string[]) =>
-      api.post<{ applied: number; skipped: string[] }>(`/workspaces/${wsId}/suggestions/apply`, {
-        suggestionIds: ids,
-      }),
-    onSuccess: (r) => {
-      setSel(new Set());
-      inval();
-      void qc.invalidateQueries({ queryKey: qk.dashboard });
-      setAppliedBanner(true);
-      toast.success(
-        `Applied ${r.applied}${r.skipped.length ? ` · ${r.skipped.length} skipped` : ""}`,
-      );
+  /** Optimistic: move cards out of "pending" into accepted/rejected; roll back on error. */
+  const review = useMutation({
+    mutationFn: ({ kind, ids }: { kind: "apply" | "reject"; ids: string[] }) =>
+      api.post<{ applied?: number; rejected?: number; skipped?: string[] }>(
+        `/workspaces/${wsId}/suggestions/${kind}`,
+        { suggestionIds: ids },
+      ),
+    onMutate: async ({ kind, ids }) => {
+      const pk = qk.ws(wsId, "sug-pending");
+      const tk = qk.ws(wsId, kind === "apply" ? "sug-accepted" : "sug-rejected");
+      await qc.cancelQueries({ queryKey: pk });
+      const prevP = qc.getQueryData<Suggestion[]>(pk);
+      const prevT = qc.getQueryData<Suggestion[]>(tk);
+      const moved = (prevP ?? [])
+        .filter((x) => ids.includes(x.id))
+        .map((x) => ({ ...x, status: (kind === "apply" ? "accepted" : "rejected") as Suggestion["status"] }));
+      qc.setQueryData<Suggestion[]>(pk, (l) => l?.filter((x) => !ids.includes(x.id)));
+      qc.setQueryData<Suggestion[]>(tk, (l) => [...moved, ...(l ?? [])]);
+      setSel((cur) => new Set([...cur].filter((id) => !ids.includes(id))));
+      haptic("light");
+      return { pk, tk, prevP, prevT };
     },
-    onError: (e) => toastError(e),
-  });
-  const reject = useMutation({
-    mutationFn: (ids: string[]) =>
-      api.post<{ rejected: number }>(`/workspaces/${wsId}/suggestions/reject`, {
-        suggestionIds: ids,
-      }),
-    onSuccess: (r) => {
-      setSel(new Set());
-      inval();
-      toast.success(`Rejected ${r.rejected}`);
+    onError: (e, _v, ctx) => {
+      if (ctx) {
+        qc.setQueryData(ctx.pk, ctx.prevP);
+        qc.setQueryData(ctx.tk, ctx.prevT);
+      }
+      haptic("warning");
+      toastError(e);
     },
-    onError: (e) => toastError(e),
+    onSuccess: (r, { kind, ids }) => {
+      if (kind === "apply") void qc.invalidateQueries({ queryKey: qk.dashboard });
+      if (ids.length > 1)
+        toast.success(
+          kind === "apply"
+            ? `Applied ${r.applied ?? ids.length}${r.skipped?.length ? ` · ${r.skipped.length} skipped` : ""}`
+            : `Rejected ${r.rejected ?? ids.length}`,
+        );
+    },
+    onSettled: inval,
   });
+  const act = (kind: "apply" | "reject", ids: string[]) => review.mutate({ kind, ids });
 
   if (pending.isPending) return <CardSkeletons count={3} h="h-40" />;
-  if (pending.isError)
-    return <ErrorState error={pending.error} onRetry={() => void pending.refetch()} />;
+  if (pending.isError) return <ErrorState error={pending.error} onRetry={() => void pending.refetch()} />;
   const list = pending.data;
+  const reviewedList = [...(accepted.data ?? []), ...(rejected.data ?? [])];
+  const reviewed = reviewedList.length;
+  const total = reviewed + list.length;
   const allSel = list.length > 0 && sel.size === list.length;
   const toggle = (id: string, v: boolean) =>
-    setSel((s) => {
-      const n = new Set(s);
+    setSel((cur) => {
+      const n = new Set(cur);
       if (v) n.add(id);
       else n.delete(id);
       return n;
@@ -465,51 +481,62 @@ function SuggestionsTab({ wsId, goReport }: { wsId: string; goReport: () => void
 
   return (
     <div className="space-y-3 pb-20">
-      {appliedBanner && (
-        <button
-          onClick={goReport}
-          className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-primary/30 bg-accent p-3 text-left text-sm font-medium"
-        >
-          <RefreshCw className="h-5 w-5 text-primary" /> Recalculate your score — {RESCORE_COST}{" "}
-          credits
-        </button>
+      {total > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-sm font-semibold">
+            {reviewed} of {total} reviewed
+          </p>
+          <ProgressBar value={(reviewed / total) * 100} />
+        </div>
       )}
       <p className="caption flex items-center gap-1.5">
-        <ShieldCheck className="h-4 w-4" /> Every suggestion is checked against your original
-        resume.
+        <ShieldCheck className="h-4 w-4 shrink-0" /> Every suggestion is checked against your original resume.
       </p>
-      {list.length > 0 && (
+      {list.length === 0 && total > 0 && !needs.data?.length && (
+        <Card className="space-y-3 border-primary/30 bg-accent text-center">
+          <p className="font-semibold">All reviewed</p>
+          {rescore.waiting ? (
+            <p className="flex items-center justify-center gap-2 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Recalculating…
+            </p>
+          ) : (
+            <ActionButton size="full" loading={rescore.starting} onClick={rescore.start}>
+              <RefreshCw className="h-4 w-4" /> Recalculate your score ({RESCORE_COST} credits)
+            </ActionButton>
+          )}
+        </Card>
+      )}
+      {list.length === 0 && total === 0 && !needs.data?.length && (
+        <EmptyState title="No suggestions" description="Nothing to change for this job." />
+      )}
+      {list.length > 1 && (
         <div className="flex items-center">
           <CheckBox
             checked={allSel}
             label="Select all"
-            onChange={(v) => setSel(v ? new Set(list.map((s) => s.id)) : new Set())}
+            onChange={(v) => setSel(v ? new Set(list.map((x) => x.id)) : new Set())}
           />
           <span className="text-sm font-medium">Select all ({list.length})</span>
         </div>
       )}
-      {list.length === 0 && !needs.data?.length ? (
-        <EmptyState title="No pending suggestions" description="You've reviewed everything." />
-      ) : null}
-      {list.map((s) => (
-        <SuggestionCard
-          key={s.id}
-          s={s}
-          checked={sel.has(s.id)}
-          onCheck={(v) => toggle(s.id, v)}
-          onReject={() => reject.mutate([s.id])}
-        />
+      {list.length > 0 && <p className="caption">Swipe right to apply, left to reject.</p>}
+      {list.map((x) => (
+        <SwipeCard key={x.id} onApply={() => act("apply", [x.id])} onReject={() => act("reject", [x.id])}>
+          <SuggestionCard
+            s={x}
+            checked={sel.has(x.id)}
+            onCheck={(v) => toggle(x.id, v)}
+            onApply={() => act("apply", [x.id])}
+            onReject={() => act("reject", [x.id])}
+          />
+        </SwipeCard>
       ))}
-      {needs.data?.map((s) => (
-        <NeedsInfoCard key={s.id} wsId={wsId} s={s} onDone={inval} />
-      ))}
-      {(accepted.data?.length ?? 0) + (rejected.data?.length ?? 0) > 0 && (
-        <Collapsible
-          title={`Reviewed (${(accepted.data?.length ?? 0) + (rejected.data?.length ?? 0)})`}
-        >
+      {needs.data?.map((x) => <NeedsInfoCard key={x.id} wsId={wsId} s={x} onDone={inval} />)}
+      {reviewed > 0 && (
+        <Collapsible title={`Reviewed (${reviewed})`}>
           <div className="space-y-3">
-            {[...(accepted.data ?? []), ...(rejected.data ?? [])].map((s) => (
-              <SuggestionCard key={s.id} s={s} />
+            {reviewedList.map((x) => (
+              <SuggestionCard key={x.id} s={x} />
             ))}
           </div>
         </Collapsible>
@@ -517,21 +544,12 @@ function SuggestionsTab({ wsId, goReport }: { wsId: string; goReport: () => void
       {sel.size > 0 && (
         <div className="pb-safe fixed inset-x-0 bottom-16 z-20 mx-auto flex max-w-lg gap-2 border-t border-border bg-card p-3">
           <div className="flex-1">
-            <ActionButton
-              variant="secondary"
-              size="full"
-              loading={reject.isPending}
-              onClick={() => reject.mutate([...sel])}
-            >
+            <ActionButton variant="secondary" size="full" onClick={() => act("reject", [...sel])}>
               Reject {sel.size}
             </ActionButton>
           </div>
           <div className="flex-[2]">
-            <ActionButton
-              size="full"
-              loading={apply.isPending}
-              onClick={() => apply.mutate([...sel])}
-            >
+            <ActionButton size="full" onClick={() => act("apply", [...sel])}>
               Apply {sel.size}
             </ActionButton>
           </div>
@@ -541,35 +559,91 @@ function SuggestionsTab({ wsId, goReport }: { wsId: string; goReport: () => void
   );
 }
 
+/** Swipe right = apply, left = reject (35% of width), revealing a check / x behind the card. */
+function SwipeCard({ children, onApply, onReject }: { children: ReactNode; onApply: () => void; onReject: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const applyOpacity = useTransform(x, [0, 80], [0, 1]);
+  const rejectOpacity = useTransform(x, [-80, 0], [1, 0]);
+  const end = (_: unknown, info: PanInfo) => {
+    const w = ref.current?.offsetWidth ?? 320;
+    if (info.offset.x > w * 0.35) {
+      void animate(x, w, { duration: 0.18 });
+      onApply();
+    } else if (info.offset.x < -w * 0.35) {
+      void animate(x, -w, { duration: 0.18 });
+      onReject();
+    } else void animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
+  };
+  return (
+    <div ref={ref} className="relative overflow-hidden rounded-xl">
+      <motion.div style={{ opacity: applyOpacity }} className="absolute inset-0 flex items-center justify-start bg-success/15 pl-6 text-success" aria-hidden>
+        <Check className="h-7 w-7" />
+      </motion.div>
+      <motion.div style={{ opacity: rejectOpacity }} className="absolute inset-0 flex items-center justify-end bg-destructive/15 pr-6 text-destructive" aria-hidden>
+        <X className="h-7 w-7" />
+      </motion.div>
+      <motion.div drag="x" dragDirectionLock dragSnapToOrigin={false} dragElastic={0.6} dragConstraints={{ left: 0, right: 0 }} style={{ x, touchAction: "pan-y" }} onDragEnd={end} className="relative">
+        {children}
+      </motion.div>
+    </div>
+  );
+}
+
+/** One paragraph, word-level diff of old → new text. */
+function WordDiff({ oldText, newText }: { oldText: string; newText: string }) {
+  const parts = diffWords(oldText, newText);
+  return (
+    <p className="text-sm leading-relaxed">
+      {parts.map((p, i) =>
+        p.removed ? (
+          <span key={i} className="rounded bg-destructive/10 text-destructive line-through">
+            {p.value}
+          </span>
+        ) : p.added ? (
+          <span key={i} className="rounded bg-success/10 font-medium text-success">
+            {p.value}
+          </span>
+        ) : (
+          <span key={i}>{p.value}</span>
+        ),
+      )}
+    </p>
+  );
+}
+
 function SuggestionCard({
   s,
   checked,
   onCheck,
+  onApply,
   onReject,
 }: {
   s: Suggestion;
   checked?: boolean;
   onCheck?: (v: boolean) => void;
+  onApply?: () => void;
   onReject?: () => void;
 }) {
   return (
     <Card className="space-y-2 p-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {onCheck && <CheckBox checked={!!checked} label="Select suggestion" onChange={onCheck} />}
-        <span className="caption flex-1 font-semibold uppercase tracking-wide">
+        <span className="caption min-w-0 flex-1 font-semibold uppercase tracking-wide">
           {s.sectionType.replace(/_/g, " ")}
         </span>
-        <Badge
-          tone={s.impact === "high" ? "success" : s.impact === "medium" ? "primary" : "neutral"}
-        >
+        <Badge tone={s.impact === "high" ? "success" : s.impact === "medium" ? "primary" : "neutral"}>
           {s.impact} impact
         </Badge>
         {s.status !== "pending" && (
           <Badge tone={s.status === "accepted" ? "success" : "neutral"}>{s.status}</Badge>
         )}
       </div>
-      {s.oldText && <p className="text-sm text-muted-foreground line-through">{s.oldText}</p>}
-      <p className="text-sm font-medium text-success">{s.newText}</p>
+      {s.oldText ? (
+        <WordDiff oldText={s.oldText} newText={s.newText} />
+      ) : (
+        <p className="text-sm font-medium text-success">{s.newText}</p>
+      )}
       {s.reason && <p className="caption">{s.reason}</p>}
       {s.keywordsAdded.length > 0 && (
         <div className="flex flex-wrap gap-1">
@@ -580,10 +654,15 @@ function SuggestionCard({
           ))}
         </div>
       )}
-      {onReject && (
-        <button onClick={onReject} className="min-h-11 text-sm font-semibold text-muted-foreground">
-          Reject
-        </button>
+      {onApply && onReject && (
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <ActionButton variant="secondary" onClick={onReject}>
+            <X className="h-4 w-4" /> Reject
+          </ActionButton>
+          <ActionButton onClick={onApply}>
+            <Check className="h-4 w-4" /> Apply
+          </ActionButton>
+        </div>
       )}
     </Card>
   );
