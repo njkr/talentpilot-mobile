@@ -716,6 +716,8 @@ function CoverTab({ wsId }: { wsId: string }) {
   });
   const [tone, setTone] = useState<CoverLetterTone | null>(null);
   const [len, setLen] = useState<CoverLetterLength | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<{ v: number; text: string } | null>(null);
   const regen = useMutation({
     mutationFn: () =>
       api.post<CoverLetter>(`/workspaces/${wsId}/cover-letter/regenerate`, {
@@ -734,6 +736,7 @@ function CoverTab({ wsId }: { wsId: string }) {
       {(c) => {
         const t = tone ?? c.tone,
           l = len ?? c.length;
+        const text = draft && draft.v === c.version ? draft.text : c.content;
         return (
           <div className="space-y-3">
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
@@ -760,16 +763,35 @@ function CoverTab({ wsId }: { wsId: string }) {
               <RefreshCw className="h-4 w-4" /> Regenerate — {COVER_REGEN_COST} credits
             </ActionButton>
             <Card>
-              <p className="whitespace-pre-wrap text-base leading-relaxed">{c.content}</p>
-              <p className="caption mt-3">
-                Version {c.version} · {c.wordCount} words
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="caption min-w-0">
+                  Version {c.version} · {c.wordCount} words{text !== c.content ? " · edited" : ""}
+                </p>
+                <button
+                  onClick={() => setEditing((v) => !v)}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 px-2 text-sm font-semibold text-primary"
+                >
+                  {editing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                  {editing ? "Done" : "Edit"}
+                </button>
+              </div>
+              {editing ? (
+                <textarea
+                  value={text}
+                  onChange={(e) => setDraft({ v: c.version, text: e.target.value })}
+                  rows={14}
+                  aria-label="Cover letter text"
+                  className="w-full rounded-lg border border-input bg-card p-3 text-base leading-relaxed"
+                />
+              ) : (
+                <p className="whitespace-pre-wrap text-base leading-relaxed">{text}</p>
+              )}
             </Card>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom)+0.5rem)] z-10 grid grid-cols-2 gap-2 rounded-xl bg-background/95 py-2 backdrop-blur">
               <ActionButton
-                variant="secondary"
                 onClick={async () => {
-                  await copyText(c.content);
+                  await copyText(text);
+                  haptic("light");
                   toast.success("Copied");
                 }}
               >
@@ -778,8 +800,8 @@ function CoverTab({ wsId }: { wsId: string }) {
               <ActionButton
                 variant="secondary"
                 onClick={async () => {
-                  if (!(await shareText("Cover letter", c.content))) {
-                    await copyText(c.content);
+                  if (!(await shareText("Cover letter", text))) {
+                    await copyText(text);
                     toast.success("Copied (sharing not available)");
                   }
                 }}
@@ -800,6 +822,7 @@ function InterviewTab({ wsId }: { wsId: string }) {
     queryKey: qk.ws(wsId, "interview"),
     queryFn: () => api.get<InterviewQuestion[]>(`/workspaces/${wsId}/interview-questions`),
   });
+  const [practice, setPractice] = useState(false);
   return (
     <Gate q={q}>
       {(list) =>
@@ -807,19 +830,22 @@ function InterviewTab({ wsId }: { wsId: string }) {
           <EmptyState title="No interview questions" />
         ) : (
           <div className="space-y-3">
+            <ActionButton size="full" onClick={() => setPractice(true)}>
+              Practice — one question at a time
+            </ActionButton>
             {list.map((iq) => (
               <QuestionCard key={iq.id} wsId={wsId} iq={iq} />
             ))}
+            {practice && <PracticeView wsId={wsId} list={list} onClose={() => setPractice(false)} />}
           </div>
         )
       }
     </Gate>
   );
 }
-function QuestionCard({ wsId, iq }: { wsId: string; iq: InterviewQuestion }) {
+function useAnswer(wsId: string, iq: InterviewQuestion) {
   const qc = useQueryClient();
   const [ans, setAns] = useState(iq.userAnswer ?? "");
-  const [ideal, setIdeal] = useState(false);
   const m = useMutation({
     mutationFn: () =>
       api.post<InterviewQuestion>(`/interview-questions/${iq.id}/answer`, { answer: ans.trim() }),
@@ -830,8 +856,106 @@ function QuestionCard({ wsId, iq }: { wsId: string; iq: InterviewQuestion }) {
       void qc.invalidateQueries({ queryKey: qk.credits });
       toast.success("Feedback ready");
     },
-    onError: (e) => toastError(e),
+    onError: (e) => {
+      haptic("warning");
+      toastError(e);
+    },
   });
+  return { ans, setAns, m };
+}
+const diffTone = (d: string) => (d === "easy" ? "success" : d === "medium" ? "warning" : "danger");
+
+/** Full-screen, one question per screen. */
+function PracticeView({ wsId, list, onClose }: { wsId: string; list: InterviewQuestion[]; onClose: () => void }) {
+  const [i, setI] = useState(0);
+  const iq = list[i];
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+  return (
+    <div role="dialog" aria-modal aria-label="Interview practice" className="pt-safe pb-safe fixed inset-0 z-50 flex flex-col bg-background">
+      <div className="flex min-h-14 items-center gap-2 border-b border-border px-2">
+        <button aria-label="Close practice" onClick={onClose} className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-accent">
+          <X className="h-5 w-5" />
+        </button>
+        <p className="min-w-0 flex-1 truncate font-semibold">
+          Question {i + 1} of {list.length}
+        </p>
+      </div>
+      <div className="flex flex-wrap justify-center gap-1.5 px-4 pt-3" aria-hidden>
+        {list.map((q, k) => (
+          <span
+            key={q.id}
+            className={cn(
+              "h-2 w-2 rounded-full",
+              k === i ? "bg-primary" : q.answerScore != null ? "bg-success" : "bg-border",
+            )}
+          />
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <PracticeQuestion key={iq.id} wsId={wsId} iq={list.find((x) => x.id === iq.id) ?? iq} />
+      </div>
+      <div className="grid grid-cols-2 gap-2 border-t border-border p-3">
+        <ActionButton variant="secondary" disabled={i === 0} onClick={() => setI(i - 1)}>
+          <ChevronLeft className="h-4 w-4" /> Previous
+        </ActionButton>
+        {i < list.length - 1 ? (
+          <ActionButton onClick={() => setI(i + 1)}>
+            Next <ChevronRight className="h-4 w-4" />
+          </ActionButton>
+        ) : (
+          <ActionButton onClick={onClose}>Finish</ActionButton>
+        )}
+      </div>
+    </div>
+  );
+}
+function PracticeQuestion({ wsId, iq }: { wsId: string; iq: InterviewQuestion }) {
+  const { ans, setAns, m } = useAnswer(wsId, iq);
+  const [ideal, setIdeal] = useState(false);
+  return (
+    <div className="mx-auto max-w-lg space-y-3">
+      <div className="flex flex-wrap gap-1.5">
+        <Badge>{categoryLabel(iq.type)}</Badge>
+        <Badge tone={diffTone(iq.difficulty)}>{categoryLabel(iq.difficulty)}</Badge>
+      </div>
+      <h2 className="h2 break-words">{iq.question}</h2>
+      {iq.whyAsked && <p className="caption"><b>What they're testing:</b> {iq.whyAsked}</p>}
+      <textarea
+        value={ans}
+        maxLength={5000}
+        onChange={(e) => setAns(e.target.value)}
+        rows={7}
+        placeholder="Type your answer (at least 20 characters)"
+        className="w-full rounded-lg border border-input bg-card p-3 text-base"
+        aria-label="Your answer"
+      />
+      <p className="caption text-right">{ans.trim().length} / 20 min</p>
+      <ActionButton size="full" disabled={ans.trim().length < 20} loading={m.isPending} onClick={() => m.mutate()}>
+        Get feedback — {FEEDBACK_COST} credit
+      </ActionButton>
+      {iq.answerScore != null && (
+        <div className="rounded-lg bg-muted p-3">
+          <p className={cn("font-display text-2xl font-bold", scoreText(iq.answerScore))}>{iq.answerScore}/100</p>
+          {iq.aiFeedback && <p className="body-text mt-1 whitespace-pre-wrap">{iq.aiFeedback}</p>}
+        </div>
+      )}
+      <button className="min-h-11 text-sm font-semibold text-primary" onClick={() => setIdeal((v) => !v)}>
+        {ideal ? "Hide ideal answer" : "Show ideal answer"}
+      </button>
+      {ideal && <p className="body-text whitespace-pre-wrap rounded-lg bg-accent p-3">{iq.idealAnswer}</p>}
+    </div>
+  );
+}
+
+function QuestionCard({ wsId, iq }: { wsId: string; iq: InterviewQuestion }) {
+  const { ans, setAns, m } = useAnswer(wsId, iq);
+  const [ideal, setIdeal] = useState(false);
   const dTone =
     iq.difficulty === "easy" ? "success" : iq.difficulty === "medium" ? "warning" : "danger";
   return (
@@ -947,6 +1071,8 @@ function SalaryTab({ wsId }: { wsId: string }) {
     queryKey: qk.ws(wsId, "salary"),
     queryFn: () => api.get<SalaryEstimate>(`/workspaces/${wsId}/salary-estimate`),
   });
+  const profile = useQuery({ queryKey: qk.profile, queryFn: () => api.get<Profile>("/profiles/me") });
+  const myCur = profile.data?.salaryCurrency;
   const fmt = (n: number, cur: string) => {
     try {
       return new Intl.NumberFormat(undefined, {
@@ -969,6 +1095,9 @@ function SalaryTab({ wsId }: { wsId: string }) {
             <Card className="space-y-4">
               <div className="text-center">
                 <p className="caption">Median estimate</p>
+                {myCur && myCur.toUpperCase() !== s.currency.toUpperCase() && (
+                  <p className="caption mt-0.5">Estimate in {s.currency.toUpperCase()}</p>
+                )}
                 <p className="font-display text-3xl font-bold text-primary">
                   {fmt(s.p50, s.currency)}
                 </p>
@@ -983,7 +1112,7 @@ function SalaryTab({ wsId }: { wsId: string }) {
                   style={{ left: `${pos(s.p50)}%` }}
                 />
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex flex-wrap justify-between gap-x-3 text-sm">
                 <span>P25 {fmt(s.p25, s.currency)}</span>
                 <span>P75 {fmt(s.p75, s.currency)}</span>
               </div>
@@ -1011,6 +1140,27 @@ function LearningTab({ wsId }: { wsId: string }) {
     queryKey: qk.ws(wsId, "learning"),
     queryFn: () => api.get<LearningRoadmap>(`/workspaces/${wsId}/learning-roadmap`),
   });
+  const key = `tp-learning-${wsId}`;
+  const [done, setDone] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    try {
+      setDone(new Set(JSON.parse(localStorage.getItem(key) ?? "[]") as number[]));
+    } catch {
+      /* ignore */
+    }
+  }, [key]);
+  const flip = (i: number, v: boolean) =>
+    setDone((cur) => {
+      const n = new Set(cur);
+      if (v) n.add(i);
+      else n.delete(i);
+      try {
+        localStorage.setItem(key, JSON.stringify([...n]));
+      } catch {
+        /* ignore */
+      }
+      return n;
+    });
   return (
     <Gate q={q}>
       {(r) =>
@@ -1018,16 +1168,20 @@ function LearningTab({ wsId }: { wsId: string }) {
           <EmptyState title="No gaps to learn — nice!" />
         ) : (
           <ol className="space-y-3">
+            <li className="space-y-1.5">
+              <p className="text-sm font-semibold">
+                {r.items.filter((_, i) => done.has(i)).length} of {r.items.length} done
+              </p>
+              <ProgressBar value={(r.items.filter((_, i) => done.has(i)).length / r.items.length) * 100} />
+            </li>
             {r.items.map((it, i) => {
               const url = it.affiliateUrl ?? it.url;
               return (
                 <Card key={i} className="space-y-1.5">
                   <div className="flex items-start gap-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-primary">
-                      {i + 1}
-                    </span>
+                    <CheckBox checked={done.has(i)} label={`Mark "${it.title}" done`} onChange={(v) => flip(i, v)} />
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold">{it.title}</p>
+                      <p className={cn("font-semibold", done.has(i) && "text-muted-foreground line-through")}>{it.title}</p>
                       <p className="caption">{it.gapReason}</p>
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         <Badge tone={it.priority === "required" ? "danger" : "primary"}>
