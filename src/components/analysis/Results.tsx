@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { diffWords } from "diff";
+import { scoreText } from "@/components/app";
+import type { Profile } from "@/types/api";
 import { animate, motion, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import {
   Check,
@@ -868,7 +870,7 @@ const diffTone = (d: string) => (d === "easy" ? "success" : d === "medium" ? "wa
 /** Full-screen, one question per screen. */
 function PracticeView({ wsId, list, onClose }: { wsId: string; list: InterviewQuestion[]; onClose: () => void }) {
   const [i, setI] = useState(0);
-  const iq = list[i];
+  const iq = list[Math.min(i, list.length - 1)]!;
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
