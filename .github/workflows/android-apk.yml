@@ -116,6 +116,9 @@ jobs:
             # tr: tolerate stray CR/LF/spaces if the secret was pasted or piped from Windows
             printf '%s' "$KEYSTORE_B64" | tr -d '\r\n ' | base64 -d > ~/.android/debug.keystore
             test -s ~/.android/debug.keystore
+            echo "DEBUG_KEYSTORE_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
+            # Public fingerprint (not secret) - must match the signing certificate of every APK.
+            keytool -list -keystore ~/.android/debug.keystore -storepass android | grep -E 'SHA-?256|Certificate fingerprint' || true
             echo "KEYSTORE_RESTORED=true" >> "$GITHUB_ENV"
           else
             echo "::warning::ANDROID_DEBUG_KEYSTORE is not set - the APK is signed with a throwaway key and cannot be installed over a previous build."
