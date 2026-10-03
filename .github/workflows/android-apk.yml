@@ -275,15 +275,17 @@ jobs:
           RELEASE_NATIVE: ${{ steps.plan.outputs.release_native }}
           NOTES: ${{ steps.plan.outputs.notes }}
         run: |
-          publish() { # tag title notes file
-            gh release create "$1" "$4" --repo "$RELEASES_REPO" --title "$2" --notes "$3" \
+          # Only APK releases carry GitHub's "Latest" flag, so /releases/latest (README link, QR code,
+          # badge) always points at an installable APK rather than a web bundle.
+          publish() { # tag title notes file latest(true|false)
+            gh release create "$1" "$4" --repo "$RELEASES_REPO" --title "$2" --notes "$3" --latest="$5" \
               || gh release upload "$1" "$4" --repo "$RELEASES_REPO" --clobber
           }
           publish "bundle-$VITE_BUNDLE_VERSION" "Web bundle $VITE_BUNDLE_VERSION" \
-            "Web bundle built from commit $GITHUB_SHA (run $GITHUB_RUN_NUMBER)." "$ZIP"
+            "Web bundle built from commit $GITHUB_SHA (run $GITHUB_RUN_NUMBER)." "$ZIP" false
           if [ "$RELEASE_NATIVE" = "true" ]; then
             publish "native-$ANDROID_VERSION_CODE" "TalentPilot $ANDROID_VERSION_NAME (build $ANDROID_VERSION_CODE)" \
-              "${NOTES:-Native release built from commit $GITHUB_SHA.}" "$APK"
+              "${NOTES:-Native release built from commit $GITHUB_SHA.}" "$APK" true
           fi
 
       - name: Update and push manifest.json

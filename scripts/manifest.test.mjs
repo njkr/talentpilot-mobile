@@ -97,3 +97,38 @@ test("resolveMinNative precedence", () => {
     1,
   );
 });
+
+test("resolveMinNative never lowers a requirement set by an earlier release", () => {
+  // build 17 was made mandatory for bundles; a later bundle-only release reads file value 1
+  assert.equal(
+    resolveMinNative({
+      override: NaN,
+      requireNew: false,
+      newVersionCode: 18,
+      fileValue: 1,
+      previous: 17,
+    }),
+    17,
+  );
+  // a higher requirement still wins, and so does an explicit override (the only way to lower it)
+  assert.equal(
+    resolveMinNative({
+      override: NaN,
+      requireNew: true,
+      newVersionCode: 20,
+      fileValue: 1,
+      previous: 17,
+    }),
+    20,
+  );
+  assert.equal(
+    resolveMinNative({
+      override: 5,
+      requireNew: false,
+      newVersionCode: 20,
+      fileValue: 1,
+      previous: 17,
+    }),
+    5,
+  );
+});

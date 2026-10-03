@@ -67,9 +67,19 @@ export function needsNativeRelease({ manifest, nativeHash, forced }) {
   return !n || !n.apkUrl || n.nativeHash !== nativeHash;
 }
 
-/** minNativeVersionCode for the bundle: explicit override > "require the new native" > file value. */
-export function resolveMinNative({ override, requireNew, newVersionCode, fileValue }) {
+/**
+ * minNativeVersionCode for the bundle.
+ *  - an explicit override wins (the only way to LOWER it);
+ *  - otherwise it is max(previous manifest value, new native build when require-new, file value),
+ *    so once a native build is required by bundles, a later bundle-only release can't silently
+ *    drop the requirement and offer a bundle to apps that cannot run it.
+ */
+export function resolveMinNative({ override, requireNew, newVersionCode, fileValue, previous }) {
   if (Number.isInteger(override) && override >= 1) return override;
-  if (requireNew && Number.isInteger(newVersionCode)) return newVersionCode;
-  return Number.isInteger(fileValue) && fileValue >= 1 ? fileValue : 1;
+  const candidates = [
+    Number.isInteger(previous) ? previous : 1,
+    Number.isInteger(fileValue) ? fileValue : 1,
+    requireNew && Number.isInteger(newVersionCode) ? newVersionCode : 1,
+  ];
+  return Math.max(1, ...candidates);
 }

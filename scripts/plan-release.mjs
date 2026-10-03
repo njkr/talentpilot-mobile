@@ -33,6 +33,7 @@ const minNative = resolveMinNative({
   requireNew: releaseNative && env.REQUIRE_NEW_NATIVE === "true",
   newVersionCode: versionCode,
   fileValue: file.minNativeVersionCode,
+  previous: manifest?.bundle?.minNativeVersionCode,
 });
 const minSupported = Math.min(
   Number.isInteger(file.minSupportedVersionCode) ? file.minSupportedVersionCode : 1,
