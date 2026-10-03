@@ -1,7 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { BriefcaseBusiness, Plus } from "lucide-react";
+import { api } from "@/lib/api";
+import { toastError } from "@/lib/errors";
 import { qk, useList } from "@/lib/queries";
-import { flat, fmtDate, InfiniteList } from "@/components/app";
+import { ConfirmSheet, flat, fmtDate, InfiniteList, ListSearch, matches, SwipeToDelete } from "@/components/app";
 import { Card, EmptyState } from "@/components/ui/tp";
 import { JobStatusBadge } from "@/lib/resumeUi";
 import { displayPosition } from "@/components/GlobalSheets";
@@ -21,11 +26,30 @@ export const Route = createFileRoute("/_app/jobs/")({
 
 function JobsPage() {
   const q = useList<JobDescription>(qk.jobs, "/job-descriptions");
-  const items = flat(q.data);
+  const all = flat(q.data);
+  const [term, setTerm] = useState("");
+  const [del, setDel] = useState<JobDescription | null>(null);
+  const qc = useQueryClient();
+  const remove = useMutation({
+    mutationFn: (j: JobDescription) => api.delete(`/job-descriptions/${j.id}`),
+    onSuccess: () => {
+      setDel(null);
+      void qc.invalidateQueries({ queryKey: qk.jobs });
+      void qc.invalidateQueries({ queryKey: qk.dashboard });
+      toast.success("Job deleted");
+    },
+    onError: (e) => {
+      setDel(null);
+      toastError(e);
+    },
+  });
+  const items = all.filter((j) => matches(term, j.position, j.company, j.location));
   return (
     <div>
+      {all.length > 6 && <ListSearch value={term} onChange={setTerm} placeholder="Search jobs" />}
       <InfiniteList
         q={q}
+        items={items}
         empty={
           <EmptyState
             icon={<BriefcaseBusiness className="h-7 w-7" />}
@@ -42,6 +66,7 @@ function JobsPage() {
           />
         }
         render={(j) => (
+          <SwipeToDelete onDelete={() => setDel(j)}>
           <Link key={j.id} to="/jobs/$id" params={{ id: j.id }} className="block">
             <Card className="flex min-h-14 items-center gap-3 p-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
@@ -58,16 +83,19 @@ function JobsPage() {
               <JobStatusBadge s={j.status} />
             </Card>
           </Link>
+          </SwipeToDelete>
         )}
       />
-      {!q.isPending && items.length > 0 && (
-        <Link
-          to="/jobs/new"
-          className="fab-bottom fixed right-4 z-20 inline-flex h-14 items-center gap-2 rounded-full bg-primary px-5 font-semibold text-primary-foreground shadow-lg hover:bg-primary-hover sm:right-[calc(50%-15rem)]"
-        >
-          <Plus className="h-5 w-5" /> Add job
-        </Link>
-      )}
+      <ConfirmSheet
+        open={!!del}
+        onClose={() => setDel(null)}
+        title="Delete this job?"
+        body={del ? displayPosition(del.position) : undefined}
+        confirmLabel="Delete"
+        danger
+        loading={remove.isPending}
+        onConfirm={() => del && remove.mutate(del)}
+      />
     </div>
   );
 }
