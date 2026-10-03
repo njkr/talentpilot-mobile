@@ -187,6 +187,9 @@ jobs:
           APK_DIR=android/app/build/outputs/apk/debug
           NAMED="talentpilot-${ANDROID_VERSION_NAME}-${ANDROID_VERSION_CODE}.apk"
           cp "$APK_DIR/app-debug.apk" "$NAMED"
+          mkdir -p upload
+          cp "$APK_DIR/app-debug.apk" upload/app-debug.apk
+          cp "bundle-${VITE_BUNDLE_VERSION}.zip" upload/
           echo "named=$NAMED" >> "$GITHUB_OUTPUT"
           # The certificate digest is public and should be IDENTICAL on every run (stable key).
           APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
@@ -195,9 +198,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: talentpilot-debug-${{ steps.ver.outputs.short }}
-          path: |
-            android/app/build/outputs/apk/debug/app-debug.apk
-            ${{ steps.bundle.outputs.zip }}
+          path: upload/
           if-no-files-found: error
 
       - name: Check out releases repo
