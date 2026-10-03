@@ -63,7 +63,7 @@ function Shell() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
-      {showTopBar && <header className="pt-safe sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
+      {showTopBar && <header className="pt-safe sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
         <div className="flex h-14 items-center justify-between px-4">
           {title ? <h1 className="h2">{title}</h1> : <MotionLogo size={28} />}
           <div className="flex items-center gap-1">

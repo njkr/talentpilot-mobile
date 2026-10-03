@@ -67,6 +67,36 @@
   --ring: #2563eb;
   --overlay: hsl(221 39% 11% / 0.45);
   --radius: 0.5rem;
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: hsl(224 30% 8%);
+  --foreground: hsl(210 20% 96%);
+  --card: hsl(222 24% 12%);
+  --card-foreground: hsl(210 20% 96%);
+  --popover: hsl(222 24% 12%);
+  --popover-foreground: hsl(210 20% 96%);
+  --primary: hsl(217 91% 60%);
+  --primary-foreground: hsl(0 0% 100%);
+  --primary-hover: hsl(213 94% 68%);
+  --secondary: hsl(222 24% 12%);
+  --secondary-foreground: hsl(210 20% 96%);
+  --muted: hsl(222 20% 15%);
+  --muted-foreground: hsl(218 11% 65%);
+  --subtle-foreground: hsl(220 9% 52%);
+  --accent: hsl(217 50% 18%);
+  --accent-foreground: hsl(213 94% 68%);
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --success: hsl(142 71% 45%);
+  --warning: hsl(38 92% 55%);
+  --border: hsl(220 16% 20%);
+  --input: hsl(220 16% 22%);
+  --ring: hsl(217 91% 60%);
+  --overlay: hsl(0 0% 0% / 0.6);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
 }
 
 @layer base {
