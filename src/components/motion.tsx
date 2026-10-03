@@ -1,3 +1,4 @@
+import type React from "react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { animate, motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -166,10 +167,12 @@ export function useFirstLoad(hasData: boolean) {
 export function CountUp({
   value,
   className,
+  style,
   format = (n: number) => Math.round(n).toLocaleString(),
 }: {
   value: number;
   className?: string;
+  style?: React.CSSProperties;
   format?: (n: number) => string;
 }) {
   const reduce = useReducedMotion();
@@ -188,7 +191,11 @@ export function CountUp({
     from.current = value;
     return () => c.stop();
   }, [value, reduce]);
-  return <span className={className}>{format(v)}</span>;
+  return (
+    <span className={className} style={style}>
+      {format(v)}
+    </span>
+  );
 }
 
 /** Check mark that draws in. */
