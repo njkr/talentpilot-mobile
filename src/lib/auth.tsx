@@ -174,6 +174,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+/** Like useAuth, but returns null outside the provider (e.g. during a hot reload) instead of crashing. */
+export function useAuthOptional() {
+  return useContext(Ctx);
+}
+
 export function useAuth() {
   const c = useContext(Ctx);
   if (!c) throw new Error("useAuth must be used inside AuthProvider");
