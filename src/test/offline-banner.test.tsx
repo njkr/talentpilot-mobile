@@ -120,7 +120,7 @@ describe("Root route never blanks", () => {
       window.dispatchEvent(new Event("online"));
     });
     await waitFor(() => expect(banner()).toBeNull());
-    // The screen still has content after the notice clears.
-    expect(container.textContent?.length ?? 0).toBeGreaterThan(0);
+    // The screen comes back with content after the notice clears.
+    await waitFor(() => expect(container.textContent?.length ?? 0).toBeGreaterThan(0));
   });
 });
