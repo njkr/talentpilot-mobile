@@ -23,8 +23,8 @@ async function plugins(): Promise<CapPlugins | null> {
   if (!Capacitor.isNativePlatform()) return null;
   const out: CapPlugins = {};
   try {
-    const m = (await import("capacitor-secure-storage-plugin")) as unknown as { SecureStoragePlugin: CapPlugins["SecureStoragePlugin"] };
-    out.SecureStoragePlugin = m.SecureStoragePlugin;
+    const m = (await import("capacitor-secure-storage-plugin")) as unknown as { SecureStoragePlugin?: NonNullable<CapPlugins["SecureStoragePlugin"]> };
+    if (m.SecureStoragePlugin) out.SecureStoragePlugin = m.SecureStoragePlugin;
   } catch {
     /* unavailable */
   }
