@@ -4,7 +4,7 @@ import { ChevronRight, CreditCard, LogOut, Shield, UserRound, UserCog } from "lu
 import { useAuth } from "@/lib/auth";
 import { Badge, BottomSheet, Button, Card } from "@/components/ui/tp";
 
-export const APP_VERSION = "1.0.0";
+import { CheckUpdatesRow, VersionFooter } from "@/components/UpdateSheets";
 
 export const Route = createFileRoute("/_app/me")({
   head: () => ({
@@ -53,13 +53,14 @@ function MePage() {
             <ChevronRight className="h-4 w-4 text-subtle" />
           </Link>
         ))}
+        <CheckUpdatesRow />
         <button onClick={() => setConfirm(true)} className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-destructive">
           <LogOut className="h-5 w-5" />
           <span className="flex-1 font-medium">Sign out</span>
         </button>
       </Card>
 
-      <p className="caption text-center">TalentPilot v{APP_VERSION}</p>
+      <VersionFooter />
 
       <BottomSheet open={confirm} onClose={() => setConfirm(false)} title="Sign out?">
         <p className="body-text">You'll need to sign in again on this device.</p>

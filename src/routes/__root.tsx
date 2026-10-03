@@ -19,6 +19,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth";
 import { useOnline } from "../lib/stores";
 import { NativeBridge } from "../components/GlobalSheets";
+import { UpdateSheets } from "../components/UpdateSheets";
 
 function NotFoundComponent() {
   return (
@@ -156,6 +157,9 @@ function RootComponent() {
     >
       <AuthProvider>
         <NativeBridge />
+        {/* Self-hosted updates. Calls notifyAppReady() after first render — keep it, or the
+            live-update plugin rolls back to the previous bundle. */}
+        <UpdateSheets />
         <OfflineBanner />
         <MotionConfig reducedMotion="user">
           <LayoutGroup>

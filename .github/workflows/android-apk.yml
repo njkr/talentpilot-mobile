@@ -1,4 +1,11 @@
-name: Android debug APK
+name: Android build & release
+
+# Every push to main builds the web app + a debug APK.
+#  - It ALWAYS publishes a live-update web bundle.
+#  - It publishes a new APK only when native inputs changed (android/, capacitor.config.ts,
+#    native plugin versions) or when "release_native" is ticked.
+# Releases land in njkr/talentpilot-releases; manifest.json (GitHub Pages) tells the app.
+# See docs/ANDROID_BUILD.md.
 
 on:
   workflow_dispatch:
@@ -7,20 +14,48 @@ on:
         description: 'API base URL incl. /api/v1 (overrides the VITE_API_BASE_URL secret)'
         required: false
         type: string
+      release_native:
+        description: 'Publish a new APK release (users get an "Update available" prompt)'
+        required: false
+        type: boolean
+        default: false
+      require_new_native:
+        description: 'With release_native: bundles from now on need THIS native build (sets minNativeVersionCode)'
+        required: false
+        type: boolean
+        default: false
+      min_native_version_code:
+        description: 'Explicit minNativeVersionCode for the bundle (overrides the above and native-version.json)'
+        required: false
+        type: string
+      notes:
+        description: 'Release notes shown in the "Update available" sheet (overrides native-version.json)'
+        required: false
+        type: string
   push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'apk-builds/**'
+      - '.gitignore'
     tags: ['v*']
 
+# One release at a time. Queued runs wait (never cancel one that is mid-publish).
 concurrency:
-  group: android-apk-${{ github.ref }}
-  cancel-in-progress: true
+  group: android-release
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
+env:
+  RELEASES_REPO: njkr/talentpilot-releases
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +76,22 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Test release scripts
+        run: node --test scripts/manifest.test.mjs
+
+      - name: Versions
+        id: ver
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version || '1.0.0'")
+          SHORT_SHA="${GITHUB_SHA::7}"
+          {
+            echo "ANDROID_VERSION_CODE=$GITHUB_RUN_NUMBER"
+            echo "ANDROID_VERSION_NAME=$PKG_VERSION"
+            echo "VITE_APP_VERSION=$PKG_VERSION"
+            echo "VITE_BUNDLE_VERSION=$PKG_VERSION-$SHORT_SHA"
+          } >> "$GITHUB_ENV"
+          echo "short=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Resolve API base URL
         env:
           INPUT_URL: ${{ inputs.api_base_url }}
@@ -54,11 +105,70 @@ jobs:
           echo "::add-mask::$url"
           echo "VITE_API_BASE_URL=$url" >> "$GITHUB_ENV"
 
+      # A stable signing key is what lets a new APK install OVER the old one. Without it every
+      # runner generates a different debug key and Android refuses the update.
+      - name: Restore stable debug keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            mkdir -p ~/.android
+            echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+            echo "KEYSTORE_RESTORED=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::ANDROID_DEBUG_KEYSTORE is not set - the APK is signed with a throwaway key and cannot be installed over a previous build."
+            echo "KEYSTORE_RESTORED=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Plan release
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN || github.token }}
+          HAS_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN != '' }}
+          IS_MAIN: ${{ github.ref == 'refs/heads/main' }}
+          FORCE_NATIVE: ${{ inputs.release_native }}
+          REQUIRE_NEW_NATIVE: ${{ inputs.require_new_native }}
+          MIN_NATIVE_OVERRIDE: ${{ inputs.min_native_version_code }}
+          NOTES_OVERRIDE: ${{ inputs.notes }}
+          VERSION_CODE: ${{ env.ANDROID_VERSION_CODE }}
+        run: |
+          NATIVE_HASH=$(node scripts/native-hash.mjs)
+          echo "native_hash=$NATIVE_HASH" >> "$GITHUB_OUTPUT"
+
+          gh api "repos/$RELEASES_REPO/contents/manifest.json" -H "Accept: application/vnd.github.raw" > current-manifest.json 2>/dev/null \
+            || echo '{}' > current-manifest.json
+
+          PUBLISH=false
+          if [ "$IS_MAIN" = "true" ] && [ "$HAS_TOKEN" = "true" ]; then
+            PUBLISH=true
+          elif [ "$IS_MAIN" = "true" ]; then
+            echo "::warning::RELEASES_REPO_TOKEN is not set - building only, NOT publishing a release."
+          fi
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+
+          MANIFEST_PATH=current-manifest.json NATIVE_HASH="$NATIVE_HASH" node scripts/plan-release.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to publish an APK that cannot update existing installs
+        if: steps.plan.outputs.publish == 'true' && steps.plan.outputs.release_native == 'true' && env.KEYSTORE_RESTORED != 'true'
+        run: |
+          echo "::error::Publishing a native release needs the ANDROID_DEBUG_KEYSTORE secret (stable signing key)."
+          exit 1
+
       - name: Build static web app
         run: bun run build:mobile
 
       - name: Check web build output
         run: test -f dist/client/index.html
+
+      # index.html must be at the zip root; the checksum is what the app passes to the updater.
+      - name: Zip web bundle
+        id: bundle
+        run: |
+          ZIP="bundle-${VITE_BUNDLE_VERSION}.zip"
+          (cd dist/client && zip -qr -X "$GITHUB_WORKSPACE/$ZIP" .)
+          unzip -l "$ZIP" | grep -E ' index\.html$' >/dev/null
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "$ZIP" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Sync Capacitor
         run: npx cap sync android
@@ -69,12 +179,98 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Short SHA
-        id: sha
-        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - name: Name APK and show signing certificate
+        id: apk
+        run: |
+          APK_DIR=android/app/build/outputs/apk/debug
+          NAMED="talentpilot-${ANDROID_VERSION_NAME}-${ANDROID_VERSION_CODE}.apk"
+          cp "$APK_DIR/app-debug.apk" "$NAMED"
+          echo "named=$NAMED" >> "$GITHUB_OUTPUT"
+          # The certificate digest is public and should be IDENTICAL on every run (stable key).
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$NAMED" | grep -E 'certificate SHA-256' || true
 
       - uses: actions/upload-artifact@v4
         with:
-          name: talentpilot-debug-${{ steps.sha.outputs.short }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: talentpilot-debug-${{ steps.ver.outputs.short }}
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            ${{ steps.bundle.outputs.zip }}
           if-no-files-found: error
+
+      - name: Check out releases repo
+        if: steps.plan.outputs.publish == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.RELEASES_REPO }}
+          token: ${{ secrets.RELEASES_REPO_TOKEN }}
+          path: releases
+
+      # Order matters: attach the files to GitHub Releases FIRST, and only then point the
+      # manifest at them, so the app never sees a URL that does not exist yet.
+      - name: Publish releases
+        if: steps.plan.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+          ZIP: ${{ steps.bundle.outputs.zip }}
+          APK: ${{ steps.apk.outputs.named }}
+          RELEASE_NATIVE: ${{ steps.plan.outputs.release_native }}
+          NOTES: ${{ steps.plan.outputs.notes }}
+        run: |
+          publish() { # tag title notes file
+            gh release create "$1" "$4" --repo "$RELEASES_REPO" --title "$2" --notes "$3" \
+              || gh release upload "$1" "$4" --repo "$RELEASES_REPO" --clobber
+          }
+          publish "bundle-$VITE_BUNDLE_VERSION" "Web bundle $VITE_BUNDLE_VERSION" \
+            "Web bundle built from commit $GITHUB_SHA (run $GITHUB_RUN_NUMBER)." "$ZIP"
+          if [ "$RELEASE_NATIVE" = "true" ]; then
+            publish "native-$ANDROID_VERSION_CODE" "TalentPilot $ANDROID_VERSION_NAME (build $ANDROID_VERSION_CODE)" \
+              "${NOTES:-Native release built from commit $GITHUB_SHA.}" "$APK"
+          fi
+
+      - name: Update and push manifest.json
+        if: steps.plan.outputs.publish == 'true'
+        env:
+          BASE: https://github.com/${{ env.RELEASES_REPO }}/releases/download
+          RELEASE_NATIVE: ${{ steps.plan.outputs.release_native }}
+          NOTES: ${{ steps.plan.outputs.notes }}
+          MIN_NATIVE: ${{ steps.plan.outputs.min_native }}
+          MIN_SUPPORTED: ${{ steps.plan.outputs.min_supported }}
+          NATIVE_HASH: ${{ steps.plan.outputs.native_hash }}
+          SHA256: ${{ steps.bundle.outputs.sha256 }}
+          ZIP: ${{ steps.bundle.outputs.zip }}
+          APK: ${{ steps.apk.outputs.named }}
+        run: |
+          MANIFEST_PATH=releases/manifest.json \
+          BUNDLE_VERSION="$VITE_BUNDLE_VERSION" \
+          BUNDLE_URL="$BASE/bundle-$VITE_BUNDLE_VERSION/$ZIP" \
+          BUNDLE_SHA256="$SHA256" \
+          MIN_NATIVE_VERSION_CODE="$MIN_NATIVE" \
+          NATIVE_RELEASE="$RELEASE_NATIVE" \
+          NATIVE_VERSION_CODE="$ANDROID_VERSION_CODE" \
+          NATIVE_VERSION_NAME="$ANDROID_VERSION_NAME" \
+          NATIVE_APK_URL="$BASE/native-$ANDROID_VERSION_CODE/$APK" \
+          NATIVE_MIN_SUPPORTED="$MIN_SUPPORTED" \
+          NATIVE_NOTES="$NOTES" \
+          NATIVE_HASH="$NATIVE_HASH" \
+          node scripts/release-manifest.mjs
+
+          cd releases
+          git config user.name "talentpilot-ci"
+          git config user.email "ci@users.noreply.github.com"
+          git add manifest.json
+          if git diff --cached --quiet; then echo "manifest unchanged"; exit 0; fi
+          git commit -m "Release bundle $VITE_BUNDLE_VERSION$( [ "$RELEASE_NATIVE" = "true" ] && echo " + native build $ANDROID_VERSION_CODE" )"
+          for i in 1 2 3; do git push && break || { git pull --rebase; sleep 3; }; done
+
+      - name: Summary
+        if: always()
+        env:
+          PUBLISHED: ${{ steps.plan.outputs.publish }}
+          RELEASE_NATIVE: ${{ steps.plan.outputs.release_native }}
+        run: |
+          {
+            echo "### Build"
+            echo "- App ${ANDROID_VERSION_NAME} (build ${ANDROID_VERSION_CODE}), bundle \`${VITE_BUNDLE_VERSION}\`"
+            echo "- Published: ${PUBLISHED:-false}; native APK release: ${RELEASE_NATIVE:-n/a}"
+          } >> "$GITHUB_STEP_SUMMARY"
