@@ -20,6 +20,7 @@ import { AuthProvider } from "../lib/auth";
 import { useOnline } from "../lib/stores";
 import { NativeBridge } from "../components/GlobalSheets";
 import { UpdateSheets } from "../components/UpdateSheets";
+import { THEME_BOOT_SCRIPT, ThemeSync, useTheme } from "../lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -86,7 +87,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { name: "theme-color", content: "#fafafa" },
+      { name: "theme-color", content: "#ffffff" },
+      { name: "color-scheme", content: "light dark" },
       { title: "TalentPilot — AI job application assistant" },
       { name: "description", content: "Match your resume to any job, get ATS scores, edits, cover letters and interview prep." },
       { property: "og:title", content: "TalentPilot — AI job application assistant" },
@@ -113,8 +115,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -156,6 +159,7 @@ function RootComponent() {
       }}
     >
       <AuthProvider>
+        <ThemeSync />
         <NativeBridge />
         {/* Self-hosted updates. Calls notifyAppReady() after first render — keep it, or the
             live-update plugin rolls back to the previous bundle. */}
@@ -166,8 +170,13 @@ function RootComponent() {
             <Outlet />
           </LayoutGroup>
         </MotionConfig>
-        <Toaster position="bottom-center" offset={88} richColors />
+        <ThemedToaster />
       </AuthProvider>
     </PersistQueryClientProvider>
   );
+}
+
+function ThemedToaster() {
+  const { resolved } = useTheme();
+  return <Toaster position="bottom-center" offset={88} richColors theme={resolved} />;
 }
