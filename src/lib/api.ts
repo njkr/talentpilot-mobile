@@ -1,13 +1,18 @@
-import { API_BASE_URL } from "@/config";
+import { API_BASE_URL, IS_NGROK } from "@/config";
 import { tokenStorage } from "@/lib/tokenStorage";
 import type { ApiErrorBody, ApiResponse, ErrorCode, Page, SessionResponse } from "@/types/api";
 
 /** Mobile clients receive the refresh token in the JSON body. */
 export type MobileSessionResponse = SessionResponse & { refreshToken?: string };
 
-/** ngrok dev tunnel header — remove for production. */
-const NGROK_HEADERS: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
-export const NGROK_QUERY = "ngrok-skip-browser-warning=true";
+/** ngrok dev tunnel flag — only sent when the API URL is an ngrok tunnel. */
+const NGROK_HEADERS: Record<string, string> = IS_NGROK ? { "ngrok-skip-browser-warning": "true" } : {};
+/** Query-string suffix for EventSource URLs ("" or "&ngrok-skip-browser-warning=true"). */
+export const NGROK_QUERY = IS_NGROK ? "&ngrok-skip-browser-warning=true" : "";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** How long to wait for a concurrent rotation to land before re-reading the token. */
+export const SUPERSEDED_WAIT_MS = 300;
 
 export class ApiError extends Error {
   constructor(
@@ -57,7 +62,17 @@ export function refreshSession(): Promise<MobileSessionResponse> {
     refreshInFlight = (async () => {
       const rt = await tokenStorage.get();
       if (!rt) throw new ApiError("TOKEN_INVALID", "No session", 401);
-      const s = await rawRequest<MobileSessionResponse>("POST", "/auth/refresh", { refreshToken: rt }, false);
+      let s: MobileSessionResponse;
+      try {
+        s = await rawRequest<MobileSessionResponse>("POST", "/auth/refresh", { refreshToken: rt }, false);
+      } catch (e) {
+        // Another tab/process rotated the token under us: wait, re-read, retry once if it changed.
+        if (!(e instanceof ApiError && e.status === 401 && e.code === "TOKEN_SUPERSEDED")) throw e;
+        await sleep(SUPERSEDED_WAIT_MS);
+        const rt2 = await tokenStorage.get();
+        if (!rt2 || rt2 === rt) throw e;
+        s = await rawRequest<MobileSessionResponse>("POST", "/auth/refresh", { refreshToken: rt2 }, false);
+      }
       await applySession(s);
       listener?.onSession(s);
       return s;
@@ -126,6 +141,17 @@ async function request<T>(
   full = false,
 ): Promise<T> {
   const isPublic = PUBLIC_AUTH.test(path);
+  // No access token yet (e.g. launched offline): get one first instead of sending an
+  // unauthenticated request the server would answer with TOKEN_INVALID.
+  if (!isPublic && !accessToken) {
+    try {
+      await refreshSession();
+    } catch (re) {
+      if (re instanceof ApiError && re.status === 401 && (re.code === "TOKEN_INVALID" || re.code === "TOKEN_REUSE_DETECTED"))
+        await hardLogout();
+      throw re;
+    }
+  }
   try {
     return await rawRequest<T>(method, path, body, !isPublic, headers, full);
   } catch (e) {
@@ -134,7 +160,8 @@ async function request<T>(
       try {
         await refreshSession();
       } catch (re) {
-        if (re instanceof ApiError && re.status === 401) await hardLogout();
+        if (re instanceof ApiError && re.status === 401 && (re.code === "TOKEN_INVALID" || re.code === "TOKEN_REUSE_DETECTED"))
+          await hardLogout();
         throw re;
       }
       return rawRequest<T>(method, path, body, true, headers, full);
@@ -196,11 +223,17 @@ export const api = {
         fd.append("file", file);
         xhr.send(fd);
       });
+    if (!accessToken) await refreshSession();
     try {
       return await send();
     } catch (e) {
       if (e instanceof ApiError && e.code === "TOKEN_EXPIRED") {
         await refreshSession();
+        onProgress(0);
+        return send();
+      }
+      if (e instanceof ApiError && e.code === "TOKEN_SUPERSEDED") {
+        if (refreshInFlight) await refreshInFlight.catch(() => undefined);
         onProgress(0);
         return send();
       }

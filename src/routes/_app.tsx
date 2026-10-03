@@ -9,6 +9,7 @@ import { LaunchScreen, MotionLogo, useLaunchGate } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import type { CreditBalance, UnreadCount } from "@/types/api";
 import { NewAnalysisSheet, UpgradeSheet } from "@/components/GlobalSheets";
+import { Unreachable } from "@/components/Unreachable";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -40,6 +41,7 @@ function AppLayout() {
   const phase = useLaunchGate(status === "loading");
   if (phase !== "done") return <LaunchScreen phase={phase} />;
   if (status === "guest") return <Navigate to="/login" replace />;
+  if (status === "unreachable") return <Unreachable />;
   return <Shell />;
 }
 

@@ -2,7 +2,6 @@
 // https://njkr.github.io/talentpilot-releases/manifest.json). Kept free of I/O so they can be
 // unit-tested with `node --test scripts/`.
 
-const HEX64 = /^[0-9a-f]{64}$/;
 
 function must(cond, msg) {
   if (!cond) throw new Error(`release-manifest: ${msg}`);
@@ -18,7 +17,9 @@ export function applyRelease(manifest, { bundle, native }) {
   must(bundle, 'bundle is required');
   must(bundle.version, 'bundle.version is empty');
   must(/^https:\/\//.test(bundle.url), 'bundle.url must be https');
-  must(HEX64.test(bundle.checksum), 'bundle.checksum must be a sha256 hex string');
+  // Signed bundles carry the Capgo-encrypted checksum (long hex) + ivSessionKey.
+  must(bundle.sessionKey, 'bundle.sessionKey is empty (bundle must be signed/encrypted)');
+  must(/^[0-9a-f]{64,}$/i.test(bundle.checksum), 'bundle.checksum must be a hex string');
   must(Number.isInteger(bundle.minNativeVersionCode) && bundle.minNativeVersionCode >= 1, 'bundle.minNativeVersionCode must be an integer >= 1');
 
   const next = {
@@ -26,6 +27,7 @@ export function applyRelease(manifest, { bundle, native }) {
       version: bundle.version,
       url: bundle.url,
       checksum: bundle.checksum,
+      sessionKey: bundle.sessionKey,
       minNativeVersionCode: bundle.minNativeVersionCode,
     },
     native: { ...manifest.native },

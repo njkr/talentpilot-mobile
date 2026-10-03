@@ -14,9 +14,15 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { LayoutGroup, MotionConfig } from "framer-motion";
 
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/plus-jakarta-sans/700.css";
+import "@fontsource/plus-jakarta-sans/800.css";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider } from "../lib/auth";
+import { AuthProvider, useAuth } from "../lib/auth";
 import { useOnline } from "../lib/stores";
 import { NativeBridge } from "../components/GlobalSheets";
 import { UpdateSheets } from "../components/UpdateSheets";
@@ -97,12 +103,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap",
-      },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
     ],
@@ -130,10 +130,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function OfflineBanner() {
   const online = useOnline();
-  if (online) return null;
+  const { offline } = useAuth();
+  if (online && !offline) return null;
   return (
     <div className="pt-safe fixed inset-x-0 top-0 z-[60] bg-warning text-center text-xs font-medium text-foreground">
-      <div className="py-1.5">You're offline. Showing saved data.</div>
+      <div className="py-1.5">{online ? "Can't reach TalentPilot. Showing saved data." : "You're offline. Showing saved data."}</div>
     </div>
   );
 }

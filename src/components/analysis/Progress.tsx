@@ -89,7 +89,7 @@ export function useRunStream(runId: string, initial: Run | undefined, onTerminal
         return onFail();
       }
       if (stopped) return;
-      es = new EventSource(`${API_BASE_URL}/workspaces/runs/${runId}/stream?ticket=${encodeURIComponent(ticket.ticket)}&${NGROK_QUERY}`);
+      es = new EventSource(`${API_BASE_URL}/workspaces/runs/${runId}/stream?ticket=${encodeURIComponent(ticket.ticket)}${NGROK_QUERY}`);
       es.addEventListener("snapshot", (e) => {
         failures = 0;
         const d = parse(e) as { status: RunStatus; progress: number; steps: { name: string; status: StepStatus }[] };

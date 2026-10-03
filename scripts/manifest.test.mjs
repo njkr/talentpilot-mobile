@@ -11,6 +11,7 @@ const bundle = (over = {}) => ({
   version: '1.0.0-abc1234',
   url: 'https://github.com/njkr/talentpilot-releases/releases/download/bundle-1.0.0-abc1234/bundle-1.0.0-abc1234.zip',
   checksum: sha,
+  sessionKey: 'iv==:key==',
   minNativeVersionCode: 1,
   ...over,
 });
@@ -44,7 +45,8 @@ test('does not mutate its input', () => {
 });
 
 test('rejects bad input', () => {
-  assert.throws(() => applyRelease(base, { bundle: bundle({ checksum: 'nope' }) }), /sha256/);
+  assert.throws(() => applyRelease(base, { bundle: bundle({ checksum: 'nope' }) }), /hex/);
+  assert.throws(() => applyRelease(base, { bundle: bundle({ sessionKey: '' }) }), /sessionKey/);
   assert.throws(() => applyRelease(base, { bundle: bundle({ url: 'http://x' }) }), /https/);
   assert.throws(() => applyRelease(base, { bundle: bundle({ version: '' }) }), /version/);
   assert.throws(() => applyRelease(base, { bundle: bundle(), native: native({ minSupportedVersionCode: 99 }) }), /minSupported/);

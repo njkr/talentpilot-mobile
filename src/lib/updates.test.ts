@@ -23,6 +23,7 @@ const bundle = (o: Partial<BundleInfo> = {}): BundleInfo => ({
   version: "1.0.0-new",
   url: "https://example.com/b.zip",
   checksum: "a".repeat(64),
+  sessionKey: "",
   minNativeVersionCode: 1,
   ...o,
 });
