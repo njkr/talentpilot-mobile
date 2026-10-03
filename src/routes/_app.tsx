@@ -1,10 +1,14 @@
 import { createFileRoute, Link, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, BriefcaseBusiness, FileText, Home, LineChart, UserRound, Zap } from "lucide-react";
+import { Bell, BriefcaseBusiness, FileText, Home, LineChart, Plus, Upload, UserRound, Zap } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { motion } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { BottomSheet } from "@/components/ui/tp";
+import { openNewAnalysis } from "@/lib/stores";
+import { haptic } from "@/lib/native";
 import { LaunchScreen, MotionLogo, useLaunchGate } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import type { CreditBalance, UnreadCount } from "@/types/api";
@@ -20,7 +24,6 @@ const TABS = [
   { to: "/resumes", label: "Resumes", icon: FileText },
   { to: "/jobs", label: "Jobs", icon: BriefcaseBusiness },
   { to: "/analyses", label: "Analyses", icon: LineChart },
-  { to: "/me", label: "Me", icon: UserRound },
 ] as const;
 
 const TITLES: Record<string, string> = {
@@ -58,6 +61,9 @@ function Shell() {
     refetchInterval: 10 * 60_000,
   });
   const count = unread.data?.count ?? 0;
+  const { user } = useAuth();
+  const [quick, setQuick] = useState(false);
+  const nav = useNavigate();
   const title = TITLES[pathname];
   const showTopBar = TAB_ROOTS.has(pathname);
   const tabRoot = showTopBar;
@@ -109,12 +115,50 @@ function Shell() {
           <Outlet />
         </motion.div>
       </main>
+      <BottomSheet open={quick} onClose={() => setQuick(false)} title="Quick actions">
+        <div className="-mx-2 flex flex-col">
+          {[
+            { label: "Upload resume", icon: Upload, go: () => nav({ to: "/resumes", search: { upload: true } }) },
+            { label: "Add job", icon: BriefcaseBusiness, go: () => nav({ to: "/jobs/new" }) },
+            { label: "New analysis", icon: LineChart, go: () => openNewAnalysis() },
+          ].map((a) => (
+            <button
+              key={a.label}
+              onClick={() => {
+                setQuick(false);
+                void a.go();
+              }}
+              className="flex min-h-14 items-center gap-3 rounded-lg px-3 text-left text-base font-medium hover:bg-accent"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
+                <a.icon className="h-5 w-5" />
+              </span>
+              {a.label}
+            </button>
+          ))}
+        </div>
+      </BottomSheet>
       <UpgradeSheet />
       <NewAnalysisSheet />
 
       <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg border-t border-border bg-card">
-        <ul className="grid grid-cols-5">
-          {TABS.map((t) => {
+        <ul className="grid grid-cols-5 items-end">
+          {[TABS[0], TABS[1], null, TABS[2], TABS[3]].map((t) => {
+            if (!t)
+              return (
+                <li key="plus" className="flex justify-center">
+                  <button
+                    onClick={() => {
+                      haptic("light");
+                      setQuick(true);
+                    }}
+                    aria-label="Quick actions"
+                    className="-mt-6 mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background hover:bg-primary-hover focus-visible:ring-primary"
+                  >
+                    <Plus className="h-7 w-7" />
+                  </button>
+                </li>
+              );
             const active = "exact" in t ? pathname === t.to : pathname.startsWith(t.to);
             const Icon = t.icon;
             return (
@@ -122,12 +166,12 @@ function Shell() {
                 <Link
                   to={t.to}
                   className={cn(
-                    "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset",
+                    "flex min-h-16 flex-col items-center justify-center gap-1 px-0.5 py-1.5 text-center text-[0.6875rem] font-medium leading-tight focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >
-                  <Icon className={cn("h-5 w-5", active && "stroke-[2.4]")} />
-                  {t.label}
+                  <Icon className={cn("h-5 w-5 shrink-0", active && "stroke-[2.4]")} />
+                  <span className="max-w-full truncate">{t.label}</span>
                 </Link>
               </li>
             );
