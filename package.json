@@ -13,6 +13,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
+    "screenshots": "node scripts/screenshots.mjs",
+    "qr": "node scripts/make-qr.mjs",
     "test:watch": "vitest"
   },
   "overrides": {
@@ -75,7 +77,10 @@
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",
     "nitro": "3.0.260603-beta",
+    "playwright": "^1.63.0",
     "prettier": "^3.7.3",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.5",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "8.1.5",
