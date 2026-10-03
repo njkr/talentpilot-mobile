@@ -25,3 +25,10 @@
 - Keep CapacitorUpdater { autoUpdate: false } in capacitor.config.ts and never add server.url — updates are manual, staged for next cold start.
 - Never remove src/lib/updates.ts, the Me-screen version/update rows, or @capgo/capacitor-updater — they are the self-update path for sideloaded installs.
 - Adding/upgrading a Capacitor plugin triggers a native APK release — avoid casual native dependency changes.
+
+## Security / session (do not regress)
+- Auth bootstrap (src/lib/auth.tsx) only signs out on 401 TOKEN_INVALID / TOKEN_REUSE_DETECTED or no stored token; network/5xx keep the token and use the cached user — offline launches must not log users out.
+- The API URL comes only from VITE_API_BASE_URL (src/config.ts); no hardcoded fallback — leaked/stale tunnels otherwise ship in builds.
+- Fonts are self-hosted via @fontsource; no Google Fonts links — works offline and avoids third-party requests.
+- AndroidManifest keeps allowBackup="false" + data_extraction_rules — tokens must not leave the device.
+- Live-update bundles must be Capgo-signed (sessionKey); the public key lives in .capgo_key_v2.pub, the private key only in CI.

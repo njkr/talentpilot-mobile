@@ -80,3 +80,26 @@ Releases are never deleted, so rollback is re-pointing the manifest: edit `manif
 - Repo secrets: base64 keystore, keystore password, key alias, key password; a workflow step that decodes the keystore and passes signing properties to Gradle.
 - `./gradlew bundleRelease` → `app-release.aab` (Play requires AAB), uploaded to Play Console.
 - A stable production API URL (not ngrok), a bumped `versionCode`/`versionName` per release, store listing assets, and a privacy policy.
+
+## Release signing (opt-in: `build_type: release`)
+
+Push builds stay **debug** for now. A manual run with `build_type = release` builds a minified, release-signed APK.
+
+1. Create the key once (keep it forever — **if it is lost, installed apps can never be updated again**):
+   ```bash
+   keytool -genkeypair -v -keystore talentpilot-release.jks -alias talentpilot \
+     -keyalg RSA -keysize 4096 -validity 10000
+   ```
+2. Back it up in two places (password manager + offline drive), with both passwords and the alias.
+3. Add repo secrets: `ANDROID_RELEASE_KEYSTORE` (`base64 -w0 talentpilot-release.jks`), `ANDROID_RELEASE_KEYSTORE_PASSWORD`, `ANDROID_RELEASE_KEY_ALIAS`, `ANDROID_RELEASE_KEY_PASSWORD`.
+4. Moving users from debug to release: the signing key changes, so every installed debug build must be **uninstalled once** before installing the release APK.
+
+## Signed live-update bundles
+
+Every published bundle is encrypted/signed with Capgo; the app rejects bundles without a session key.
+
+1. Create the key pair (in a scratch copy, so the config isn't rewritten): `npx @capgo/cli@8.70.0 key create`.
+2. Commit **only** `.capgo_key_v2.pub` at the repo root (read by `capacitor.config.ts` → `CapacitorUpdater.publicKey`).
+3. Save the private key `.capgo_key_v2` as the `CAPGO_PRIVATE_KEY` repo secret, and back it up. Never commit it (gitignored).
+4. Publishing fails if either is missing.
+5. **This needs a native release.** The first run after adding the key must use **release_native + require_new_native**: that sets `minNativeVersionCode` to that build, so signed bundles go only to apps that have the public key; older apps get the "Update available" prompt first.
