@@ -6,6 +6,7 @@ import { isNative, onAppResume } from "@/lib/native";
 import {
   checkForUpdates,
   dismissNativeUpdate,
+  getUpdateState,
   initUpdates,
   openApk,
   useUpdateState,
@@ -66,15 +67,23 @@ export function UpdateSheets() {
   );
 }
 
-/** "App 1.0.0 (build 12) · bundle 1.0.0-ab12cd3" for the Me screen. */
+/** "App 1.0.0 (build 12) · bundle 1.0.0-ab12cd3" for the Me screen, plus the last update problem if any. */
 export function VersionFooter() {
   const s = useUpdateState();
   if (!isNative()) return <p className="caption text-center">TalentPilot · web preview</p>;
   return (
-    <p className="caption text-center">
-      App {s.installed?.versionName ?? "—"} (build {s.installed?.build ?? "—"}) · bundle{" "}
-      {s.bundleVersion}
-    </p>
+    <div className="space-y-1 text-center">
+      <p className="caption">
+        App {s.installed?.versionName ?? "—"} (build {s.installed?.build ?? "—"}) · bundle{" "}
+        {s.bundleVersion}
+      </p>
+      {s.lastCheckedAt && !s.lastError && (
+        <p className="caption">Last checked {new Date(s.lastCheckedAt).toLocaleTimeString()}</p>
+      )}
+      {s.lastError && (
+        <p className="caption text-destructive">Update check failed: {s.lastError}</p>
+      )}
+    </div>
   );
 }
 
@@ -87,7 +96,8 @@ export function CheckUpdatesRow() {
       onClick={async () => {
         const r = await checkForUpdates({ force: true });
         if (r === "up-to-date") toast.success("You're up to date");
-        else if (r === "error") toast.error("Couldn't check for updates. Try again later.");
+        else if (r === "error")
+          toast.error(getUpdateState().lastError ?? "Couldn't check for updates. Try again later.");
         else if (r === "bundle-ready") return; // the "restart to apply" toast is already showing
       }}
       disabled={s.checking}

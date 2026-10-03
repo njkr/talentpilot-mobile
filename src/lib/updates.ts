@@ -137,6 +137,9 @@ export interface UpdateState {
   native: { state: Exclude<NativeUpdateState, "none">; info: NativeInfo } | null;
   bundleReady: { id: string; version: string } | null;
   checking: boolean;
+  /** Last failure reason, shown on the Me screen so a stuck updater is diagnosable on-device. */
+  lastError: string | null;
+  lastCheckedAt: number | null;
 }
 let state: UpdateState = {
   installed: null,
@@ -144,12 +147,15 @@ let state: UpdateState = {
   native: null,
   bundleReady: null,
   checking: false,
+  lastError: null,
+  lastCheckedAt: null,
 };
 const subs = new Set<() => void>();
 const setState = (patch: Partial<UpdateState>) => {
   state = { ...state, ...patch };
   subs.forEach((s) => s());
 };
+export const getUpdateState = () => state;
 export const useUpdateState = () =>
   useSyncExternalStore(
     (fn) => {
@@ -162,11 +168,47 @@ export const useUpdateState = () =>
 
 // ── Runtime ─────────────────────────────────────────────────────────────────
 
+/** Reject if a native/plugin call never answers, so one stuck call can't wedge the whole flow. */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 160);
+
 async function prefs() {
   return (await import("@capacitor/preferences")).Preferences;
 }
 async function updater() {
   return (await import("@capgo/capacitor-updater")).CapacitorUpdater;
+}
+
+/** Preferences are a convenience (throttle / dismissal); a failure there must never block updates. */
+async function prefGet(key: string): Promise<string | null> {
+  try {
+    return (
+      (await withTimeout((await prefs()).get({ key }), 3_000, "Preferences.get")).value ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+async function prefSet(key: string, value: string) {
+  try {
+    await withTimeout((await prefs()).set({ key, value }), 3_000, "Preferences.set");
+  } catch {
+    /* ignore */
+  }
 }
 
 let readyDone = false;
@@ -175,21 +217,32 @@ export async function notifyAppReady() {
   if (!isNative() || readyDone) return;
   readyDone = true;
   try {
-    await (await updater()).notifyAppReady();
+    await withTimeout((await updater()).notifyAppReady(), 8_000, "notifyAppReady");
   } catch (e) {
     readyDone = false;
     console.warn("notifyAppReady failed", e);
+    setState({ lastError: `notifyAppReady: ${errMsg(e)}` });
   }
 }
 
+/** Reads installed app + current bundle. The two reads are independent: either may fail alone. */
 async function loadInstalled() {
-  const { App } = await import("@capacitor/app");
-  const info = await App.getInfo();
-  const cur = await (await updater()).current();
-  setState({
-    installed: { versionName: info.version, build: Number(info.build) || 1 },
-    bundleVersion: cur.bundle.version === "builtin" ? BUILT_IN_BUNDLE_VERSION : cur.bundle.version,
-  });
+  try {
+    const { App } = await import("@capacitor/app");
+    const info = await withTimeout(App.getInfo(), 5_000, "App.getInfo");
+    setState({ installed: { versionName: info.version, build: Number(info.build) || 1 } });
+  } catch (e) {
+    setState({ lastError: `App.getInfo: ${errMsg(e)}` });
+  }
+  try {
+    const cur = await withTimeout((await updater()).current(), 5_000, "CapacitorUpdater.current");
+    setState({
+      bundleVersion:
+        cur.bundle.version === "builtin" ? BUILT_IN_BUNDLE_VERSION : cur.bundle.version,
+    });
+  } catch (e) {
+    setState({ lastError: `current(): ${errMsg(e)}` });
+  }
 }
 
 async function fetchManifest(): Promise<Manifest | null> {
@@ -200,10 +253,11 @@ async function fetchManifest(): Promise<Manifest | null> {
       cache: "no-store",
       signal: ctl.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) throw new Error(`manifest HTTP ${res.status}`);
     return parseManifest(await res.json());
-  } catch {
-    return null; // offline / timeout / bad JSON: updates are best-effort
+  } catch (e) {
+    setState({ lastError: `manifest: ${errMsg(e)}` }); // offline / timeout / CORS / bad JSON
+    return null;
   } finally {
     clearTimeout(t);
   }
@@ -211,8 +265,8 @@ async function fetchManifest(): Promise<Manifest | null> {
 
 async function readDismissal(): Promise<Dismissal | null> {
   try {
-    const { value } = await (await prefs()).get({ key: KEY_DISMISSED });
-    return value ? (JSON.parse(value) as Dismissal) : null;
+    const raw = await prefGet(KEY_DISMISSED);
+    return raw ? (JSON.parse(raw) as Dismissal) : null;
   } catch {
     return null;
   }
@@ -222,19 +276,10 @@ export async function dismissNativeUpdate() {
   const n = state.native;
   if (!n || n.state === "required") return; // a required update can't be dismissed
   setState({ native: null });
-  try {
-    await (
-      await prefs()
-    ).set({
-      key: KEY_DISMISSED,
-      value: JSON.stringify({
-        versionCode: n.info.versionCode,
-        at: Date.now(),
-      } satisfies Dismissal),
-    });
-  } catch {
-    /* ignore */
-  }
+  await prefSet(
+    KEY_DISMISSED,
+    JSON.stringify({ versionCode: n.info.versionCode, at: Date.now() } satisfies Dismissal),
+  );
 }
 
 /** Apply the staged bundle right now (reloads the app). Only ever called from a user tap. */
@@ -244,11 +289,12 @@ export async function restartToApply(id: string) {
 
 async function applyBundle(bundle: BundleInfo): Promise<{ id: string; version: string } | null> {
   const u = await updater();
-  const cur = await u.current();
+  const cur = await withTimeout(u.current(), 5_000, "current()");
   const currentVersion =
     cur.bundle.version === "builtin" ? BUILT_IN_BUNDLE_VERSION : cur.bundle.version;
-  const list = await u.list();
-  const build = state.installed?.build ?? 1;
+  const list = await withTimeout(u.list(), 5_000, "list()");
+  // Unknown installed build (App.getInfo failed): assume compatible rather than blocking updates.
+  const build = state.installed?.build ?? Number.MAX_SAFE_INTEGER;
 
   const action = bundleAction(bundle, build, currentVersion, list.bundles);
   if (action === "skip") return null;
@@ -257,14 +303,14 @@ async function applyBundle(bundle: BundleInfo): Promise<{ id: string; version: s
   if (action === "stage") {
     id = list.bundles.find((b) => b.version === bundle.version)!.id;
   } else {
-    const info = await u.download({
-      url: bundle.url,
-      version: bundle.version,
-      checksum: bundle.checksum,
-    });
+    const info = await withTimeout(
+      u.download({ url: bundle.url, version: bundle.version, checksum: bundle.checksum }),
+      120_000,
+      "download",
+    );
     id = info.id;
   }
-  await u.next({ id }); // takes effect on the next cold start — never reload mid-session
+  await withTimeout(u.next({ id }), 5_000, "next()"); // takes effect on the next cold start — never reload mid-session
 
   // Best-effort cleanup of older staged bundles so storage doesn't grow.
   for (const b of list.bundles) {
@@ -284,21 +330,22 @@ export async function checkForUpdates({
   if (!isNative()) return "unsupported";
   if (inFlight) return "busy";
   inFlight = true;
-  setState({ checking: true });
+  setState({ checking: true, lastError: null });
   try {
-    const p = await prefs();
-    const last = Number((await p.get({ key: KEY_LAST_CHECK })).value) || null;
+    const last = Number(await prefGet(KEY_LAST_CHECK)) || null;
     if (!shouldCheck(last, Date.now(), force)) return "throttled";
     if (!state.installed) await loadInstalled();
 
     const manifest = await fetchManifest();
     if (!manifest) return "error";
-    await p.set({ key: KEY_LAST_CHECK, value: String(Date.now()) });
+    await prefSet(KEY_LAST_CHECK, String(Date.now()));
+    setState({ lastCheckedAt: Date.now() });
 
-    const build = state.installed?.build ?? 1;
     let result: CheckResult = "up-to-date";
 
-    const ns = nativeUpdateState(build, manifest.native);
+    // Native prompt needs the installed build; if it couldn't be read, skip it (bundle path still runs).
+    const build = state.installed?.build;
+    const ns = build === undefined ? "none" : nativeUpdateState(build, manifest.native);
     if (ns !== "none") {
       const hidden =
         ns === "available" &&
@@ -324,10 +371,13 @@ export async function checkForUpdates({
       }
     } catch (e) {
       console.warn("bundle update failed", e);
+      setState({ lastError: `bundle: ${errMsg(e)}` });
+      if (result === "up-to-date") result = "error";
     }
     return result;
   } catch (e) {
     console.warn("update check failed", e);
+    setState({ lastError: errMsg(e) });
     return "error";
   } finally {
     inFlight = false;
@@ -338,12 +388,9 @@ export async function checkForUpdates({
 /** Call once from the root component after first render. */
 export async function initUpdates() {
   if (!isNative()) return;
-  await notifyAppReady();
-  try {
-    await loadInstalled();
-  } catch {
-    /* version info is cosmetic */
-  }
+  // Not awaited: a slow/stuck notifyAppReady must never stop the rest of the flow.
+  void notifyAppReady();
+  await loadInstalled();
   void checkForUpdates();
 }
 
