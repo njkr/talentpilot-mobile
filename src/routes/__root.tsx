@@ -22,7 +22,7 @@ import "@fontsource/plus-jakarta-sans/700.css";
 import "@fontsource/plus-jakarta-sans/800.css";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider, useAuth } from "../lib/auth";
+import { AuthProvider } from "../lib/auth";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { useOnline } from "../lib/stores";
 import { NativeBridge } from "../components/GlobalSheets";
