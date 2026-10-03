@@ -13,7 +13,7 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { qk, COVER_REGEN_COST, FEEDBACK_COST, RESCORE_COST } from "@/lib/queries";
 import { toastError } from "@/lib/errors";
-import { copyText, openExternal, shareText } from "@/lib/native";
+import { copyText, haptic, openExternal, shareText } from "@/lib/native";
 import {
   ActionButton,
   CardSkeletons,
@@ -41,25 +41,21 @@ import type {
   Suggestion,
 } from "@/types/api";
 
-export const TABS = [
-  "report",
-  "suggestions",
-  "cover-letter",
-  "interview",
-  "company",
-  "salary",
-  "learning",
-] as const;
+export const TABS = ["improve", "prepare", "research"] as const;
 export type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = {
-  report: "Report",
-  suggestions: "Suggestions",
-  "cover-letter": "Cover Letter",
-  interview: "Interview",
-  company: "Company",
-  salary: "Salary",
-  learning: "Learning",
+const TAB_LABEL: Record<Tab, string> = { improve: "Improve", prepare: "Prepare", research: "Research" };
+/** Old 7-tab values still arrive from links/notifications: map them onto the 3 segments. */
+const LEGACY: Record<string, Tab> = {
+  report: "improve",
+  suggestions: "improve",
+  "cover-letter": "prepare",
+  interview: "prepare",
+  company: "research",
+  salary: "research",
+  learning: "research",
 };
+export const toTab = (v: string | undefined): Tab | undefined =>
+  v == null ? undefined : (TABS as readonly string[]).includes(v) ? (v as Tab) : LEGACY[v];
 
 export function Results({
   wsId,
@@ -73,62 +69,141 @@ export function Results({
   setTab: (t: Tab) => void;
 }) {
   const [opened, setOpened] = useState<Set<Tab>>(() => new Set([tab]));
-  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement>>>({});
   useEffect(() => {
     setOpened((s) => (s.has(tab) ? s : new Set(s).add(tab)));
   }, [tab]);
-  useEffect(() => {
-    tabRefs.current[tab]?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "center",
-    });
-  }, [tab]);
   return (
     <div className="space-y-3">
-      <div className="relative -mx-4">
-        <div className="scrollbar-none flex gap-2 overflow-x-auto px-4 pb-1 pr-12" role="tablist">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              ref={(node) => {
-                if (node) tabRefs.current[t] = node;
-              }}
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary",
-                tab === t
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-foreground",
-              )}
-            >
-              {TAB_LABEL[t]}
-            </button>
-          ))}
-        </div>
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background to-transparent"
-          aria-hidden
-        />
+      <div role="tablist" className="grid grid-cols-3 gap-1 rounded-full bg-muted p-1">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "min-h-11 min-w-0 truncate rounded-full px-2 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-primary",
+              tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
+            )}
+          >
+            {TAB_LABEL[t]}
+          </button>
+        ))}
       </div>
       {TABS.map((t) =>
         opened.has(t) ? (
-          <div key={t} hidden={t !== tab}>
-            {t === "report" && <ReportTab wsId={wsId} resumeId={resumeId} />}
-            {t === "suggestions" && (
-              <SuggestionsTab wsId={wsId} goReport={() => setTab("report")} />
+          <div key={t} hidden={t !== tab} role="tabpanel">
+            {t === "improve" && <ImproveView wsId={wsId} resumeId={resumeId} />}
+            {t === "prepare" && (
+              <>
+                <LazySection title="Cover letter">
+                  <CoverTab wsId={wsId} />
+                </LazySection>
+                <LazySection title="Interview">
+                  <InterviewTab wsId={wsId} />
+                </LazySection>
+              </>
             )}
-            {t === "cover-letter" && <CoverTab wsId={wsId} />}
-            {t === "interview" && <InterviewTab wsId={wsId} />}
-            {t === "company" && <CompanyTab wsId={wsId} />}
-            {t === "salary" && <SalaryTab wsId={wsId} />}
-            {t === "learning" && <LearningTab wsId={wsId} />}
+            {t === "research" && (
+              <>
+                <LazySection title="Company">
+                  <CompanyTab wsId={wsId} />
+                </LazySection>
+                <LazySection title="Salary">
+                  <SalaryTab wsId={wsId} />
+                </LazySection>
+                <LazySection title="Learning">
+                  <LearningTab wsId={wsId} />
+                </LazySection>
+              </>
+            )}
           </div>
         ) : null,
       )}
     </div>
+  );
+}
+
+/** Section with a sticky header whose body (and its data fetch) mounts only when scrolled near. */
+function LazySection({ title, children }: { title: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || near) return;
+    if (typeof IntersectionObserver === "undefined") return setNear(true);
+    const io = new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && setNear(true), {
+      rootMargin: "400px 0px",
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+  return (
+    <section ref={ref} className="pb-4">
+      <h2 className="h3 pt-safe sticky top-0 z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur">{title}</h2>
+      {near ? children : <CardSkeletons count={1} h="h-32" />}
+    </section>
+  );
+}
+
+/** Shared recalculation state so both the score card and the "All reviewed" card can start it. */
+function useRescore(wsId: string) {
+  const qc = useQueryClient();
+  const [rescoreId, setRescoreId] = useState<string | null>(null);
+  const status = useQuery({
+    queryKey: qk.ws(wsId, `rescore-${rescoreId}`),
+    queryFn: () => api.get<RescoreStatus>(`/workspaces/${wsId}/rescore/${rescoreId}`),
+    enabled: !!rescoreId,
+    refetchInterval: 2500,
+    retry: false,
+  });
+  useEffect(() => {
+    if (!rescoreId) return;
+    if (status.isError) {
+      setRescoreId(null);
+      toast("Couldn't track the recalculation — pull to refresh in a bit.");
+      return;
+    }
+    const st = status.data?.status;
+    if (st === "completed") {
+      setRescoreId(null);
+      haptic("success");
+      toast.success("Score updated");
+      void qc.invalidateQueries({ queryKey: qk.ws(wsId, "report") });
+      void qc.invalidateQueries({ queryKey: qk.workspaces });
+      void qc.invalidateQueries({ queryKey: qk.dashboard });
+    } else if (st === "failed") {
+      setRescoreId(null);
+      haptic("warning");
+      toast.error(status.data?.error ?? "Recalculation failed");
+    }
+  }, [status.data, status.isError, rescoreId, wsId, qc]);
+  const m = useMutation({
+    mutationFn: () => api.postIdempotent<RescoreResponse>(`/workspaces/${wsId}/rescore`),
+    onSuccess: (r) => {
+      setRescoreId(r.rescoreId);
+      void qc.invalidateQueries({ queryKey: qk.credits });
+    },
+    onError: (e) => {
+      haptic("warning");
+      toastError(e, { NO_CHANGES_TO_RESCORE: "Apply some suggestions first" });
+    },
+  });
+  return { waiting: !!rescoreId, start: () => m.mutate(), starting: m.isPending };
+}
+type Rescore = ReturnType<typeof useRescore>;
+
+function ImproveView({ wsId, resumeId }: { wsId: string; resumeId: string }) {
+  const rescore = useRescore(wsId);
+  return (
+    <>
+      <LazySection title="Score">
+        <ReportTab wsId={wsId} resumeId={resumeId} rescore={rescore} />
+      </LazySection>
+      <LazySection title="Suggestions">
+        <SuggestionsTab wsId={wsId} rescore={rescore} />
+      </LazySection>
+    </>
   );
 }
 
@@ -158,10 +233,8 @@ function Gate<T>({
 }
 
 // ── Report ────────────────────────────────────────────────────────────
-function ReportTab({ wsId, resumeId }: { wsId: string; resumeId: string }) {
-  const qc = useQueryClient();
-  const [rescoreId, setRescoreId] = useState<string | null>(null);
-  const waitFrom = rescoreId;
+function ReportTab({ wsId, resumeId, rescore }: { wsId: string; resumeId: string; rescore: Rescore }) {
+  const waitFrom = rescore.waiting;
   const q = useQuery({
     queryKey: qk.ws(wsId, "report"),
     queryFn: () => api.get<AtsReport>(`/workspaces/${wsId}/report`),
@@ -169,40 +242,6 @@ function ReportTab({ wsId, resumeId }: { wsId: string; resumeId: string }) {
   const versions = useQuery({
     queryKey: qk.versions(resumeId),
     queryFn: () => api.get<ResumeVersion[]>(`/resumes/${resumeId}/versions`),
-  });
-  const status = useQuery({
-    queryKey: qk.ws(wsId, `rescore-${rescoreId}`),
-    queryFn: () => api.get<RescoreStatus>(`/workspaces/${wsId}/rescore/${rescoreId}`),
-    enabled: !!rescoreId,
-    refetchInterval: 2500,
-    retry: false,
-  });
-  useEffect(() => {
-    if (!rescoreId) return;
-    if (status.isError) {
-      setRescoreId(null);
-      toast("Couldn't track the recalculation — pull to refresh in a bit.");
-      return;
-    }
-    const s = status.data?.status;
-    if (s === "completed") {
-      setRescoreId(null);
-      toast.success("Score updated");
-      void qc.invalidateQueries({ queryKey: qk.ws(wsId, "report") });
-      void qc.invalidateQueries({ queryKey: qk.workspaces });
-      void qc.invalidateQueries({ queryKey: qk.dashboard });
-    } else if (s === "failed") {
-      setRescoreId(null);
-      toast.error(status.data?.error ?? "Recalculation failed");
-    }
-  }, [status.data, status.isError, rescoreId, wsId, qc]);
-  const rescore = useMutation({
-    mutationFn: () => api.postIdempotent<RescoreResponse>(`/workspaces/${wsId}/rescore`),
-    onSuccess: (r) => {
-      setRescoreId(r.rescoreId);
-      void qc.invalidateQueries({ queryKey: qk.credits });
-    },
-    onError: (e) => toastError(e, { NO_CHANGES_TO_RESCORE: "Apply some suggestions first" }),
   });
   const [openKw, setOpenKw] = useState<string | null>(null);
 
@@ -217,7 +256,7 @@ function ReportTab({ wsId, resumeId }: { wsId: string; resumeId: string }) {
         const canRescore = latestVersion > r.resumeVersion;
         return (
           <div className="space-y-3">
-            <Card className="flex items-center gap-4">
+            <Card className="flex flex-wrap items-center gap-4">
               <ScoreRing score={r.overallScore} />
               <div className="min-w-0 flex-1 space-y-1.5">
                 {r.matchBand && (
@@ -259,8 +298,8 @@ function ReportTab({ wsId, resumeId }: { wsId: string; resumeId: string }) {
                 variant={canRescore ? "primary" : "secondary"}
                 size="full"
                 disabled={!canRescore}
-                loading={rescore.isPending}
-                onClick={() => rescore.mutate()}
+                loading={rescore.starting}
+                onClick={rescore.start}
               >
                 <RefreshCw className="h-4 w-4" /> Recalculate — {RESCORE_COST} credits
               </ActionButton>
