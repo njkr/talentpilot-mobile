@@ -113,7 +113,9 @@ jobs:
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
             mkdir -p ~/.android
-            echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+            # tr: tolerate stray CR/LF/spaces if the secret was pasted or piped from Windows
+            printf '%s' "$KEYSTORE_B64" | tr -d '\r\n ' | base64 -d > ~/.android/debug.keystore
+            test -s ~/.android/debug.keystore
             echo "KEYSTORE_RESTORED=true" >> "$GITHUB_ENV"
           else
             echo "::warning::ANDROID_DEBUG_KEYSTORE is not set - the APK is signed with a throwaway key and cannot be installed over a previous build."
