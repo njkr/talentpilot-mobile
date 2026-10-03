@@ -1,6 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, ChevronRight, CreditCard, LogOut, Monitor, Moon, Palette, Shield, Sun, UserRound, UserCog } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  CreditCard,
+  LogOut,
+  Monitor,
+  Moon,
+  Palette,
+  Shield,
+  Sun,
+  UserRound,
+  UserCog,
+} from "lucide-react";
 import { useTheme, type ThemeChoice } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import { Badge, BottomSheet, Button, Card } from "@/components/ui/tp";
@@ -13,7 +25,10 @@ export const Route = createFileRoute("/_app/me")({
       { title: "Me — TalentPilot" },
       { name: "description", content: "Your TalentPilot profile, billing, security and account." },
       { property: "og:title", content: "Me — TalentPilot" },
-      { property: "og:description", content: "Your TalentPilot profile, billing, security and account." },
+      {
+        property: "og:description",
+        content: "Your TalentPilot profile, billing, security and account.",
+      },
     ],
   }),
   component: MePage,
@@ -49,7 +64,11 @@ function MePage() {
         <div className="min-w-0 flex-1">
           <p className="h3 truncate">{user?.email}</p>
           <div className="mt-1">
-            {user?.isVerified ? <Badge tone="success">Verified</Badge> : <Badge tone="warning">Unverified</Badge>}
+            {user?.isVerified ? (
+              <Badge tone="success">Verified</Badge>
+            ) : (
+              <Badge tone="warning">Unverified</Badge>
+            )}
           </div>
         </div>
       </Card>
@@ -62,14 +81,20 @@ function MePage() {
             <ChevronRight className="h-4 w-4 text-subtle" />
           </Link>
         ))}
-        <button onClick={() => setAppearance(true)} className="flex min-h-14 w-full items-center gap-3 px-4 text-left">
+        <button
+          onClick={() => setAppearance(true)}
+          className="flex min-h-14 w-full items-center gap-3 px-4 text-left"
+        >
           <Palette className="h-5 w-5 text-muted-foreground" />
           <span className="flex-1 font-medium">Appearance</span>
           <span className="body-text">{THEMES.find((t) => t.value === theme)?.label}</span>
           <ChevronRight className="h-4 w-4 text-subtle" />
         </button>
         <CheckUpdatesRow />
-        <button onClick={() => setConfirm(true)} className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-destructive">
+        <button
+          onClick={() => setConfirm(true)}
+          className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-destructive"
+        >
           <LogOut className="h-5 w-5" />
           <span className="flex-1 font-medium">Sign out</span>
         </button>

@@ -33,7 +33,8 @@ const TITLES: Record<string, string> = {
 const TAB_ROOTS = new Set(["/", "/resumes", "/jobs", "/analyses", "/me"]);
 
 /** Compacts large balances for the top bar pill, e.g. 12.3k. */
-const fmtBalance = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : n.toLocaleString());
+const fmtBalance = (n: number) =>
+  n >= 10_000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : n.toLocaleString();
 
 /** RequireAuth + app shell. */
 function AppLayout() {
@@ -47,7 +48,10 @@ function AppLayout() {
 
 function Shell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const credits = useQuery({ queryKey: ["credits"], queryFn: () => api.get<CreditBalance>("/credits") });
+  const credits = useQuery({
+    queryKey: ["credits"],
+    queryFn: () => api.get<CreditBalance>("/credits"),
+  });
   const unread = useQuery({
     queryKey: ["notifications", "unread-count"],
     queryFn: () => api.get<UnreadCount>("/notifications/unread-count"),
@@ -65,33 +69,35 @@ function Shell() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
-      {showTopBar && <header className="pt-safe sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
-        <div className="flex h-14 items-center justify-between px-4">
-          {title ? <h1 className="h2">{title}</h1> : <MotionLogo size={28} />}
-          <div className="flex items-center gap-1">
-            <Link
-              to="/billing"
-              className="inline-flex h-9 items-center gap-1 rounded-full bg-accent px-3 text-sm font-semibold text-accent-foreground"
-              aria-label="Credits"
-            >
-              <Zap className="h-4 w-4 fill-current" />
-              {credits.data ? fmtBalance(credits.data.balance) : "—"}
-            </Link>
-            <Link
-              to="/notifications"
-              className="relative inline-flex h-11 w-11 items-center justify-center rounded-full text-foreground hover:bg-accent"
-              aria-label={count ? `${count} unread notifications` : "Notifications"}
-            >
-              <Bell className="h-5 w-5" />
-              {count > 0 && (
-                <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                  {count > 99 ? "99+" : count}
-                </span>
-              )}
-            </Link>
+      {showTopBar && (
+        <header className="pt-safe sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
+          <div className="flex h-14 items-center justify-between px-4">
+            {title ? <h1 className="h2">{title}</h1> : <MotionLogo size={28} />}
+            <div className="flex items-center gap-1">
+              <Link
+                to="/billing"
+                className="inline-flex h-9 items-center gap-1 rounded-full bg-accent px-3 text-sm font-semibold text-accent-foreground"
+                aria-label="Credits"
+              >
+                <Zap className="h-4 w-4 fill-current" />
+                {credits.data ? fmtBalance(credits.data.balance) : "—"}
+              </Link>
+              <Link
+                to="/notifications"
+                className="relative inline-flex h-11 w-11 items-center justify-center rounded-full text-foreground hover:bg-accent"
+                aria-label={count ? `${count} unread notifications` : "Notifications"}
+              >
+                <Bell className="h-5 w-5" />
+                {count > 0 && (
+                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                    {count > 99 ? "99+" : count}
+                  </span>
+                )}
+              </Link>
+            </div>
           </div>
-        </div>
-      </header>}
+        </header>
+      )}
 
       <main className="app-scroll-bottom flex-1 px-4 pt-4">
         <motion.div

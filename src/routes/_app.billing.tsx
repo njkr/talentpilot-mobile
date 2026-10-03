@@ -39,8 +39,14 @@ const REASONS: Record<string, string> = {
 };
 
 function BillingPage() {
-  const sub = useQuery({ queryKey: qk.subscription, queryFn: () => api.get<Subscription>("/payments/subscription") });
-  const credits = useQuery({ queryKey: qk.credits, queryFn: () => api.get<CreditBalance>("/credits") });
+  const sub = useQuery({
+    queryKey: qk.subscription,
+    queryFn: () => api.get<Subscription>("/payments/subscription"),
+  });
+  const credits = useQuery({
+    queryKey: qk.credits,
+    queryFn: () => api.get<CreditBalance>("/credits"),
+  });
   const hist = useList<CreditLedgerEntry>(qk.creditHistory, "/credits/history");
 
   return (
@@ -57,16 +63,28 @@ function BillingPage() {
               <p className="caption">Current plan</p>
               <p className="h2">{sub.data.planName}</p>
             </div>
-            <Badge tone={sub.data.status === "active" ? "success" : "warning"}>{sub.data.status.replace("_", " ")}</Badge>
+            <Badge tone={sub.data.status === "active" ? "success" : "warning"}>
+              {sub.data.status.replace("_", " ")}
+            </Badge>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center text-sm">
-            <div className="rounded-lg bg-muted p-2"><b>{sub.data.monthlyCredits}</b><p className="caption">credits/mo</p></div>
-            <div className="rounded-lg bg-muted p-2"><b>{sub.data.maxResumes}</b><p className="caption">resumes</p></div>
-            <div className="rounded-lg bg-muted p-2"><b>{sub.data.maxWorkspaces}</b><p className="caption">analyses</p></div>
+            <div className="rounded-lg bg-muted p-2">
+              <b>{sub.data.monthlyCredits}</b>
+              <p className="caption">credits/mo</p>
+            </div>
+            <div className="rounded-lg bg-muted p-2">
+              <b>{sub.data.maxResumes}</b>
+              <p className="caption">resumes</p>
+            </div>
+            <div className="rounded-lg bg-muted p-2">
+              <b>{sub.data.maxWorkspaces}</b>
+              <p className="caption">analyses</p>
+            </div>
           </div>
           {sub.data.currentPeriodEnd && (
             <p className="caption">
-              {sub.data.cancelAtPeriodEnd ? "Ends" : "Renews"} on {fmtDate(sub.data.currentPeriodEnd)}
+              {sub.data.cancelAtPeriodEnd ? "Ends" : "Renews"} on{" "}
+              {fmtDate(sub.data.currentPeriodEnd)}
             </p>
           )}
         </Card>
@@ -90,12 +108,20 @@ function BillingPage() {
         skeleton={<CardSkeletons count={5} h="h-14" />}
         empty={<EmptyState icon={<Receipt className="h-7 w-7" />} title="No credit activity yet" />}
         render={(e) => (
-          <div key={e.id} className="flex min-h-14 items-center justify-between rounded-xl border border-border bg-card px-3">
+          <div
+            key={e.id}
+            className="flex min-h-14 items-center justify-between rounded-xl border border-border bg-card px-3"
+          >
             <div>
               <p className="font-medium">{REASONS[e.reason] ?? e.reason}</p>
               <p className="caption">{fmtDate(e.createdAt)}</p>
             </div>
-            <span className={cn("font-display font-bold", e.amount >= 0 ? "text-success" : "text-destructive")}>
+            <span
+              className={cn(
+                "font-display font-bold",
+                e.amount >= 0 ? "text-success" : "text-destructive",
+              )}
+            >
               {e.amount >= 0 ? `+${e.amount}` : `−${Math.abs(e.amount)}`}
             </span>
           </div>

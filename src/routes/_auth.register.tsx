@@ -12,9 +12,15 @@ export const Route = createFileRoute("/_auth/register")({
   head: () => ({
     meta: [
       { title: "Create account — TalentPilot" },
-      { name: "description", content: "Create a TalentPilot account and start matching your resume to jobs." },
+      {
+        name: "description",
+        content: "Create a TalentPilot account and start matching your resume to jobs.",
+      },
       { property: "og:title", content: "Create account — TalentPilot" },
-      { property: "og:description", content: "Create a TalentPilot account and start matching your resume to jobs." },
+      {
+        property: "og:description",
+        content: "Create a TalentPilot account and start matching your resume to jobs.",
+      },
     ],
   }),
   component: RegisterPage,
@@ -34,7 +40,12 @@ const schema = z.object({
 function RegisterPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const { register, handleSubmit, formState, setError: setFieldError } = useForm<z.infer<typeof schema>>({
+  const {
+    register,
+    handleSubmit,
+    formState,
+    setError: setFieldError,
+  } = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
   });
 
@@ -48,7 +59,9 @@ function RegisterPage() {
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.code === "ALREADY_EXISTS")
-          return setFieldError("email", { message: "An account with this email already exists. Sign in instead." });
+          return setFieldError("email", {
+            message: "An account with this email already exists. Sign in instead.",
+          });
         if (e.status === 429) return setError(`Try again in ${retryAfter(e)}s`);
       }
       setError(friendlyError(e));
@@ -60,7 +73,14 @@ function RegisterPage() {
       <h1 className="h1">Create your account</h1>
       <p className="body-text mt-1">Land more interviews with AI-tailored applications.</p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
-        <Input label="Email" type="email" autoComplete="email" inputMode="email" {...register("email")} error={formState.errors.email?.message} />
+        <Input
+          label="Email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          {...register("email")}
+          error={formState.errors.email?.message}
+        />
         <Input
           label="Password"
           type="password"
@@ -69,12 +89,29 @@ function RegisterPage() {
           {...register("password")}
           error={formState.errors.password?.message}
         />
-        <Input label="Referral code (optional)" autoCapitalize="characters" {...register("referralCode")} error={formState.errors.referralCode?.message} />
-        {error && <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-        <Button type="submit" size="full" loading={formState.isSubmitting}>Create account</Button>
+        <Input
+          label="Referral code (optional)"
+          autoCapitalize="characters"
+          {...register("referralCode")}
+          error={formState.errors.referralCode?.message}
+        />
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {error}
+          </p>
+        )}
+        <Button type="submit" size="full" loading={formState.isSubmitting}>
+          Create account
+        </Button>
       </form>
       <p className="body-text mt-auto pb-6 pt-10 text-center">
-        Already have an account? <Link to="/login" className="font-semibold text-primary">Sign in</Link>
+        Already have an account?{" "}
+        <Link to="/login" className="font-semibold text-primary">
+          Sign in
+        </Link>
       </p>
     </div>
   );

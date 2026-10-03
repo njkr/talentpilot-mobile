@@ -19,10 +19,18 @@ import { api, setAccessToken, setAuthListener } from "@/lib/api";
 
 type Call = { url: string; method: string; headers: Record<string, string>; body: unknown };
 let calls: Call[] = [];
-const ok = (data: unknown) => new Response(JSON.stringify({ success: true, data, meta: { requestId: "r" } }), { status: 200 });
+const ok = (data: unknown) =>
+  new Response(JSON.stringify({ success: true, data, meta: { requestId: "r" } }), { status: 200 });
 const fail = (status: number, code: string) =>
-  new Response(JSON.stringify({ success: false, error: { code, message: code }, meta: { requestId: "r" } }), { status });
-const session = (rt: string, at = `at-${rt}`) => ({ accessToken: at, refreshToken: rt, user: { id: "u1", email: "a@b.c", isVerified: true } });
+  new Response(
+    JSON.stringify({ success: false, error: { code, message: code }, meta: { requestId: "r" } }),
+    { status },
+  );
+const session = (rt: string, at = `at-${rt}`) => ({
+  accessToken: at,
+  refreshToken: rt,
+  user: { id: "u1", email: "a@b.c", isVerified: true },
+});
 
 function mockFetch(handler: (c: Call, n: number) => Response | Promise<Response>) {
   let n = 0;
@@ -36,7 +44,8 @@ function mockFetch(handler: (c: Call, n: number) => Response | Promise<Response>
         body: init.body ? JSON.parse(String(init.body)) : undefined,
       };
       calls.push(c);
-      if (c.url === "/auth/refresh") store.log.push(`refresh:${(c.body as { refreshToken: string }).refreshToken}`);
+      if (c.url === "/auth/refresh")
+        store.log.push(`refresh:${(c.body as { refreshToken: string }).refreshToken}`);
       else store.log.push(`req:${c.url}:${c.headers["Authorization"] ?? "none"}`);
       return handler(c, n++);
     }),
@@ -58,7 +67,9 @@ describe("api auth handling", () => {
   it("TOKEN_EXPIRED: parallel requests share ONE refresh, then replay", async () => {
     mockFetch((c) => {
       if (c.url === "/auth/refresh") return ok(session("rt2"));
-      return c.headers["Authorization"] === "Bearer old" ? fail(401, "TOKEN_EXPIRED") : ok({ path: c.url });
+      return c.headers["Authorization"] === "Bearer old"
+        ? fail(401, "TOKEN_EXPIRED")
+        : ok({ path: c.url });
     });
     const res = await Promise.all([api.get("/a"), api.get("/b"), api.get("/c")]);
     expect(res).toEqual([{ path: "/a" }, { path: "/b" }, { path: "/c" }]);
@@ -91,7 +102,10 @@ describe("api auth handling", () => {
       return c.headers["Authorization"] === "Bearer old" ? fail(401, "TOKEN_EXPIRED") : ok("done");
     });
     await expect(api.get("/a")).resolves.toBe("done");
-    expect(store.log.filter((l) => l.startsWith("refresh:"))).toEqual(["refresh:rt1", "refresh:rt-other"]);
+    expect(store.log.filter((l) => l.startsWith("refresh:"))).toEqual([
+      "refresh:rt1",
+      "refresh:rt-other",
+    ]);
     expect(onLogout).not.toHaveBeenCalled();
   });
 
@@ -103,7 +117,10 @@ describe("api auth handling", () => {
   });
 
   it("a network error never logs out", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("offline"))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Promise.reject(new TypeError("offline"))),
+    );
     await expect(api.get("/a")).rejects.toMatchObject({ code: "NETWORK_ERROR" });
     expect(onLogout).not.toHaveBeenCalled();
     expect(store.token).toBe("rt1");
@@ -115,7 +132,9 @@ describe("api auth handling", () => {
       return c.headers["Authorization"] === "Bearer old" ? fail(401, "TOKEN_EXPIRED") : ok(1);
     });
     await api.postIdempotent("/workspaces", { x: 1 });
-    const keys = calls.filter((c) => c.url === "/workspaces").map((c) => c.headers["Idempotency-Key"]);
+    const keys = calls
+      .filter((c) => c.url === "/workspaces")
+      .map((c) => c.headers["Idempotency-Key"]);
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBeTruthy();
     expect(keys[0]).toBe(keys[1]);

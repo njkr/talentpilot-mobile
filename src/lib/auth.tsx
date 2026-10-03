@@ -1,6 +1,23 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { api, ApiError, applySession, clearSession, refreshSession, setAuthListener, type MobileSessionResponse } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  applySession,
+  clearSession,
+  refreshSession,
+  setAuthListener,
+  type MobileSessionResponse,
+} from "@/lib/api";
 import { tokenStorage } from "@/lib/tokenStorage";
 import { userCache, type CachedUser } from "@/lib/userCache";
 import { onAppResume, onNetworkChange } from "@/lib/native";
@@ -27,7 +44,9 @@ type AuthCtx = {
 const Ctx = createContext<AuthCtx | null>(null);
 
 export const isFatalAuthError = (e: unknown) =>
-  e instanceof ApiError && e.status === 401 && (e.code === "TOKEN_INVALID" || e.code === "TOKEN_REUSE_DETECTED");
+  e instanceof ApiError &&
+  e.status === 401 &&
+  (e.code === "TOKEN_INVALID" || e.code === "TOKEN_REUSE_DETECTED");
 
 const fromCache = (c: CachedUser): User => ({ ...c, role: "user", createdAt: "" });
 /** Backoff for launch retries: 2s, 4s, 8s … capped at 60s. */

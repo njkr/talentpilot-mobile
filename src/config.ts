@@ -7,7 +7,8 @@
 const raw = (import.meta.env["VITE_API_BASE_URL"] as string | undefined)?.trim() ?? "";
 
 if (!raw) {
-  const msg = "VITE_API_BASE_URL is not set. Add it to .env.local (see .env.example) or the build environment.";
+  const msg =
+    "VITE_API_BASE_URL is not set. Add it to .env.local (see .env.example) or the build environment.";
   if (import.meta.env.PROD && !import.meta.env["VITEST"]) throw new Error(msg);
   if (typeof console !== "undefined") console.error(msg);
 }

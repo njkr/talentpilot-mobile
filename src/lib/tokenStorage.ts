@@ -23,12 +23,15 @@ async function plugins(): Promise<CapPlugins | null> {
   if (!Capacitor.isNativePlatform()) return null;
   const out: CapPlugins = {};
   try {
-    const m = (await import("capacitor-secure-storage-plugin")) as unknown as { SecureStoragePlugin?: NonNullable<CapPlugins["SecureStoragePlugin"]> };
+    const m = (await import("capacitor-secure-storage-plugin")) as unknown as {
+      SecureStoragePlugin?: NonNullable<CapPlugins["SecureStoragePlugin"]>;
+    };
     if (m.SecureStoragePlugin) out.SecureStoragePlugin = m.SecureStoragePlugin;
   } catch {
     /* unavailable */
   }
-  if (!out.SecureStoragePlugin) out.Preferences = (await import("@capacitor/preferences")).Preferences;
+  if (!out.SecureStoragePlugin)
+    out.Preferences = (await import("@capacitor/preferences")).Preferences;
   return out;
 }
 
@@ -36,7 +39,8 @@ export const tokenStorage = {
   async get(): Promise<string | null> {
     const p = await plugins();
     try {
-      if (p?.SecureStoragePlugin) return (await p.SecureStoragePlugin.get({ key: KEY })).value || null;
+      if (p?.SecureStoragePlugin)
+        return (await p.SecureStoragePlugin.get({ key: KEY })).value || null;
     } catch {
       return null; // key missing throws in secure storage
     }

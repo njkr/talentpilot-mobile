@@ -26,7 +26,10 @@ export const Route = createFileRoute("/_app/jobs/new")({
 });
 
 const MAX = 50_000;
-const JD_ERR = { ...UPLOAD_ERRORS, JD_TOO_SHORT: "This looks too short to be a full job description" };
+const JD_ERR = {
+  ...UPLOAD_ERRORS,
+  JD_TOO_SHORT: "This looks too short to be a full job description",
+};
 
 function NewJob() {
   const [tab, setTab] = useState<"paste" | "upload">("paste");
@@ -54,7 +57,8 @@ function NewJob() {
     onError: (e) => toastError(e, JD_ERR),
   });
   const upload = useMutation({
-    mutationFn: (f: File) => api.uploadWithProgress<JobDescription>("/job-descriptions/upload", f, setProgress),
+    mutationFn: (f: File) =>
+      api.uploadWithProgress<JobDescription>("/job-descriptions/upload", f, setProgress),
     onSuccess: (j) => {
       setProgress(null);
       ok(j);
@@ -68,7 +72,10 @@ function NewJob() {
   const fromClipboard = async () => {
     try {
       const t = await readClipboard();
-      if (!t) { toast("Clipboard is empty"); return; }
+      if (!t) {
+        toast("Clipboard is empty");
+        return;
+      }
       setText(t.slice(0, MAX));
     } catch {
       toast.error("Couldn't read the clipboard. Long-press the box and paste instead.");
@@ -80,7 +87,14 @@ function NewJob() {
       <PageHeader title="Add job" />
       <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
         {(["paste", "upload"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={cn("min-h-11 rounded-lg text-sm font-semibold capitalize focus-visible:ring-2 focus-visible:ring-primary", tab === t ? "bg-card shadow-sm" : "text-muted-foreground")}>
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "min-h-11 rounded-lg text-sm font-semibold capitalize focus-visible:ring-2 focus-visible:ring-primary",
+              tab === t ? "bg-card shadow-sm" : "text-muted-foreground",
+            )}
+          >
             {t === "paste" ? "Paste text" : "Upload file"}
           </button>
         ))}
@@ -90,35 +104,81 @@ function NewJob() {
         <div className="space-y-3">
           <Card className="space-y-2">
             <div className="flex items-center justify-between">
-              <label htmlFor="jd" className="text-sm font-medium">Job description</label>
-              <Button variant="ghost" size="sm" className="h-11" onClick={() => void fromClipboard()}>
+              <label htmlFor="jd" className="text-sm font-medium">
+                Job description
+              </label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-11"
+                onClick={() => void fromClipboard()}
+              >
                 <ClipboardPaste className="h-4 w-4" /> Paste from clipboard
               </Button>
             </div>
-            <textarea id="jd" value={text} maxLength={MAX} onChange={(e) => setText(e.target.value)} rows={10} placeholder="Paste the full job posting here…" className="w-full rounded-lg border border-input bg-card p-3 text-base" />
-            <p className="caption text-right">{text.length.toLocaleString()} / {MAX.toLocaleString()}</p>
+            <textarea
+              id="jd"
+              value={text}
+              maxLength={MAX}
+              onChange={(e) => setText(e.target.value)}
+              rows={10}
+              placeholder="Paste the full job posting here…"
+              className="w-full rounded-lg border border-input bg-card p-3 text-base"
+            />
+            <p className="caption text-right">
+              {text.length.toLocaleString()} / {MAX.toLocaleString()}
+            </p>
           </Card>
           <Card className="space-y-3">
-            <Input label="Position (optional)" value={position} maxLength={200} onChange={(e) => setPosition(e.target.value)} />
-            <Input label="Company (optional)" value={company} maxLength={200} onChange={(e) => setCompany(e.target.value)} />
+            <Input
+              label="Position (optional)"
+              value={position}
+              maxLength={200}
+              onChange={(e) => setPosition(e.target.value)}
+            />
+            <Input
+              label="Company (optional)"
+              value={company}
+              maxLength={200}
+              onChange={(e) => setCompany(e.target.value)}
+            />
           </Card>
-          <ActionButton size="full" disabled={!text.trim()} loading={paste.isPending} onClick={() => paste.mutate()}>Add job</ActionButton>
+          <ActionButton
+            size="full"
+            disabled={!text.trim()}
+            loading={paste.isPending}
+            onClick={() => paste.mutate()}
+          >
+            Add job
+          </ActionButton>
         </div>
       ) : (
         <Card className="space-y-3 py-8 text-center">
           <FileUp className="mx-auto h-10 w-10 text-primary" />
           <p className="body-text">PDF or DOCX, up to 10MB</p>
-          <input ref={fileRef} type="file" accept={FILE_ACCEPT} className="hidden" onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (!f) return;
-            const bad = precheckFile(f);
-            if (bad) return void toast.error(bad);
-            setProgress(0);
-            upload.mutate(f);
-          }} />
+          <input
+            ref={fileRef}
+            type="file"
+            accept={FILE_ACCEPT}
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              const bad = precheckFile(f);
+              if (bad) return void toast.error(bad);
+              setProgress(0);
+              upload.mutate(f);
+            }}
+          />
           {progress != null && <ProgressBar value={progress} />}
-          <ActionButton size="full" loading={upload.isPending} onClick={() => fileRef.current?.click()}>Choose file</ActionButton>
+          <ActionButton
+            size="full"
+            loading={upload.isPending}
+            onClick={() => fileRef.current?.click()}
+          >
+            Choose file
+          </ActionButton>
         </Card>
       )}
     </div>

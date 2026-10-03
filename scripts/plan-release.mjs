@@ -8,29 +8,29 @@
 //   MIN_NATIVE_OVERRIDE  optional explicit minNativeVersionCode (dispatch input)
 //   NOTES_OVERRIDE       optional release notes (dispatch input)
 //   VERSION_CODE         this run's Android versionCode
-import { readFileSync } from 'node:fs';
-import { needsNativeRelease, resolveMinNative } from './lib/manifest.mjs';
+import { readFileSync } from "node:fs";
+import { needsNativeRelease, resolveMinNative } from "./lib/manifest.mjs";
 
 const env = process.env;
 let manifest = {};
 try {
-  manifest = JSON.parse(readFileSync(env.MANIFEST_PATH, 'utf8'));
+  manifest = JSON.parse(readFileSync(env.MANIFEST_PATH, "utf8"));
 } catch {
   /* first release / unreadable: treated as "no native published yet" */
 }
-const file = JSON.parse(readFileSync('native-version.json', 'utf8'));
+const file = JSON.parse(readFileSync("native-version.json", "utf8"));
 
 const releaseNative = needsNativeRelease({
   manifest,
   nativeHash: env.NATIVE_HASH,
-  forced: env.FORCE_NATIVE === 'true',
+  forced: env.FORCE_NATIVE === "true",
 });
 const versionCode = Number(env.VERSION_CODE);
 const override = env.MIN_NATIVE_OVERRIDE ? Number(env.MIN_NATIVE_OVERRIDE) : NaN;
 
 const minNative = resolveMinNative({
   override,
-  requireNew: releaseNative && env.REQUIRE_NEW_NATIVE === 'true',
+  requireNew: releaseNative && env.REQUIRE_NEW_NATIVE === "true",
   newVersionCode: versionCode,
   fileValue: file.minNativeVersionCode,
 });
@@ -38,7 +38,7 @@ const minSupported = Math.min(
   Number.isInteger(file.minSupportedVersionCode) ? file.minSupportedVersionCode : 1,
   releaseNative ? versionCode : Number.MAX_SAFE_INTEGER,
 );
-const notes = (env.NOTES_OVERRIDE || file.notes || '').replace(/\s+/g, ' ').trim();
+const notes = (env.NOTES_OVERRIDE || file.notes || "").replace(/\s+/g, " ").trim();
 
 console.log(`release_native=${releaseNative}`);
 console.log(`min_native=${minNative}`);

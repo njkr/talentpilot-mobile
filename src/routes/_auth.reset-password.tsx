@@ -15,7 +15,10 @@ export const Route = createFileRoute("/_auth/reset-password")({
       { title: "Reset password — TalentPilot" },
       { name: "description", content: "Choose a new password for your TalentPilot account." },
       { property: "og:title", content: "Reset password — TalentPilot" },
-      { property: "og:description", content: "Choose a new password for your TalentPilot account." },
+      {
+        property: "og:description",
+        content: "Choose a new password for your TalentPilot account.",
+      },
     ],
   }),
   component: ResetPage,
@@ -46,7 +49,11 @@ function ResetPage() {
     } catch (e) {
       if (e instanceof ApiError && e.code === "RESET_TOKEN_INVALID")
         return setError("This reset link is invalid or has expired. Request a new one.");
-      setError(e instanceof ApiError && e.status === 429 ? `Try again in ${retryAfter(e)}s` : friendlyError(e));
+      setError(
+        e instanceof ApiError && e.status === 429
+          ? `Try again in ${retryAfter(e)}s`
+          : friendlyError(e),
+      );
     }
   });
 
@@ -56,7 +63,11 @@ function ResetPage() {
         icon={<CheckCircle2 className="h-7 w-7" />}
         title="Password updated"
         description="You've been signed out everywhere. Sign in with your new password."
-        action={<Link to="/login" className="text-sm font-semibold text-primary">Go to sign in</Link>}
+        action={
+          <Link to="/login" className="text-sm font-semibold text-primary">
+            Go to sign in
+          </Link>
+        }
       />
     );
 
@@ -65,14 +76,44 @@ function ResetPage() {
       <h1 className="h1">Set a new password</h1>
       <p className="body-text mt-1">Paste the token from your email if it isn't filled in.</p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
-        {!token && <Input label="Reset token" autoComplete="off" {...register("token")} error={formState.errors.token?.message} />}
-        <Input label="New password" type="password" autoComplete="new-password" {...register("password")} error={formState.errors.password?.message} />
-        <Input label="Confirm password" type="password" autoComplete="new-password" {...register("confirm")} error={formState.errors.confirm?.message} />
-        {error && <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-        <Button type="submit" size="full" loading={formState.isSubmitting}>Update password</Button>
+        {!token && (
+          <Input
+            label="Reset token"
+            autoComplete="off"
+            {...register("token")}
+            error={formState.errors.token?.message}
+          />
+        )}
+        <Input
+          label="New password"
+          type="password"
+          autoComplete="new-password"
+          {...register("password")}
+          error={formState.errors.password?.message}
+        />
+        <Input
+          label="Confirm password"
+          type="password"
+          autoComplete="new-password"
+          {...register("confirm")}
+          error={formState.errors.confirm?.message}
+        />
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {error}
+          </p>
+        )}
+        <Button type="submit" size="full" loading={formState.isSubmitting}>
+          Update password
+        </Button>
       </form>
       <p className="body-text mt-auto pb-6 pt-10 text-center">
-        <Link to="/forgot-password" className="font-semibold text-primary">Request a new link</Link>
+        <Link to="/forgot-password" className="font-semibold text-primary">
+          Request a new link
+        </Link>
       </p>
     </div>
   );

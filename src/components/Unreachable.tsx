@@ -10,7 +10,9 @@ export function Unreachable() {
       <Logo size={36} />
       <WifiOff className="mt-6 h-10 w-10 text-muted-foreground" aria-hidden />
       <h1 className="h2">Can't reach TalentPilot</h1>
-      <p className="text-sm text-muted-foreground">Check your connection. You're still signed in — we'll keep trying.</p>
+      <p className="text-sm text-muted-foreground">
+        Check your connection. You're still signed in — we'll keep trying.
+      </p>
       <Button onClick={retry} className="mt-2 w-full">
         Retry
       </Button>

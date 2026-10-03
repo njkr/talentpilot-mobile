@@ -6,7 +6,15 @@ import { cn } from "@/lib/utils";
 export const EASE = [0.2, 0.8, 0.2, 1] as const;
 
 /** The logo triangle. `lift` = gentle 1.2s up/down loop. */
-export function Triangle({ lift, className, style }: { lift?: boolean; className?: string; style?: React.CSSProperties }) {
+export function Triangle({
+  lift,
+  className,
+  style,
+}: {
+  lift?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   return (
     <svg viewBox="0 0 24 24" className={cn(lift && "tp-lift", className)} style={style} aria-hidden>
       <path d="M12 4 L21 19 H3 Z" className="fill-current" />
@@ -15,7 +23,17 @@ export function Triangle({ lift, className, style }: { lift?: boolean; className
 }
 
 /** Logo square (+ optional wordmark) with shared layoutIds so it can fly into the top bar. */
-export function MotionLogo({ size = 28, wordmark = true, loading = false, reveal = false }: { size?: number; wordmark?: boolean; loading?: boolean; reveal?: boolean }) {
+export function MotionLogo({
+  size = 28,
+  wordmark = true,
+  loading = false,
+  reveal = false,
+}: {
+  size?: number;
+  wordmark?: boolean;
+  loading?: boolean;
+  reveal?: boolean;
+}) {
   return (
     <span className="inline-flex items-center gap-2">
       <motion.span
@@ -25,11 +43,22 @@ export function MotionLogo({ size = 28, wordmark = true, loading = false, reveal
         aria-hidden
       >
         <Triangle lift={loading} style={{ width: size * 0.55, height: size * 0.55 }} />
-        {loading && <span className="tp-dot absolute bottom-[18%] h-1 w-1 rounded-full bg-primary-foreground" />}
+        {loading && (
+          <span className="tp-dot absolute bottom-[18%] h-1 w-1 rounded-full bg-primary-foreground" />
+        )}
       </motion.span>
       {wordmark && (
-        <motion.span layoutId="tp-logo-word" className="font-display font-bold tracking-tight" style={{ fontSize: size * 0.62 }}>
-          <motion.span className="text-foreground" initial={reveal ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
+        <motion.span
+          layoutId="tp-logo-word"
+          className="font-display font-bold tracking-tight"
+          style={{ fontSize: size * 0.62 }}
+        >
+          <motion.span
+            className="text-foreground"
+            initial={reveal ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.15 }}
+          >
             Talent
           </motion.span>
           <motion.span
@@ -84,14 +113,28 @@ export function LaunchScreen({ phase }: { phase: "loading" | "reveal" }) {
     })();
   }, []);
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background" aria-busy={phase === "loading"} aria-label="Loading TalentPilot">
+    <div
+      className="flex min-h-dvh items-center justify-center bg-background"
+      aria-busy={phase === "loading"}
+      aria-label="Loading TalentPilot"
+    >
       <MotionLogo size={44} wordmark={phase === "reveal"} loading={phase === "loading"} reveal />
     </div>
   );
 }
 
 /** Fade-up entrance for list rows / cards. Stagger capped at 8 items. */
-export function FadeUp({ index = 0, animateIn = true, children, className }: { index?: number; animateIn?: boolean; children: ReactNode; className?: string }) {
+export function FadeUp({
+  index = 0,
+  animateIn = true,
+  children,
+  className,
+}: {
+  index?: number;
+  animateIn?: boolean;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <motion.div
       className={className}
@@ -120,7 +163,15 @@ export function useFirstLoad(hasData: boolean) {
 }
 
 /** Number that counts up over 600ms ease-out. */
-export function CountUp({ value, className, format = (n: number) => Math.round(n).toLocaleString() }: { value: number; className?: string; format?: (n: number) => string }) {
+export function CountUp({
+  value,
+  className,
+  format = (n: number) => Math.round(n).toLocaleString(),
+}: {
+  value: number;
+  className?: string;
+  format?: (n: number) => string;
+}) {
   const reduce = useReducedMotion();
   const [v, setV] = useState(reduce ? value : 0);
   const from = useRef(0);
@@ -129,7 +180,11 @@ export function CountUp({ value, className, format = (n: number) => Math.round(n
       setV(value);
       return;
     }
-    const c = animate(from.current, value, { duration: 0.6, ease: "easeOut", onUpdate: (n) => setV(n) });
+    const c = animate(from.current, value, {
+      duration: 0.6,
+      ease: "easeOut",
+      onUpdate: (n) => setV(n),
+    });
     from.current = value;
     return () => c.stop();
   }, [value, reduce]);
@@ -157,13 +212,25 @@ export function DrawCheck({ className }: { className?: string }) {
 }
 
 /** Dashed flight path with the triangle travelling along it. */
-export function FlightPath({ done, total, landed }: { done: number; total: number; landed: boolean }) {
+export function FlightPath({
+  done,
+  total,
+  landed,
+}: {
+  done: number;
+  total: number;
+  landed: boolean;
+}) {
   const pct = total ? Math.min(1, done / total) : 0;
   return (
     <div className="relative h-8" aria-hidden>
       <div className="absolute inset-x-3 top-1/2 border-t-2 border-dashed border-border" />
       <div className="absolute inset-x-3 top-0 h-full">
-        <motion.div className="absolute inset-0" animate={{ x: `${pct * 100}%` }} transition={{ duration: 0.3, ease: EASE }}>
+        <motion.div
+          className="absolute inset-0"
+          animate={{ x: `${pct * 100}%` }}
+          transition={{ duration: 0.3, ease: EASE }}
+        >
           <motion.div
             className="absolute left-0 top-1/2 -ml-3 -mt-3 h-6 w-6 text-primary"
             animate={{ y: landed ? [0, -8, 0, -3, 0] : 0 }}

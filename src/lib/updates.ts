@@ -59,7 +59,8 @@ const num = (v: unknown, fallback: number) =>
 
 /** Defensive parse: anything malformed degrades to "nothing to do" instead of throwing. */
 /** A bundle we may install: has a Capgo session key and an (encrypted) checksum. */
-export const isSignedBundle = (b: BundleInfo) => !!b.sessionKey && /^[0-9a-f]{64,}$/i.test(b.checksum);
+export const isSignedBundle = (b: BundleInfo) =>
+  !!b.sessionKey && /^[0-9a-f]{64,}$/i.test(b.checksum);
 
 export function parseManifest(raw: unknown): Manifest | null {
   if (!raw || typeof raw !== "object") return null;
@@ -313,7 +314,12 @@ async function applyBundle(bundle: BundleInfo): Promise<{ id: string; version: s
     id = list.bundles.find((b) => b.version === bundle.version)!.id;
   } else {
     const info = await withTimeout(
-      u.download({ url: bundle.url, version: bundle.version, checksum: bundle.checksum, sessionKey: bundle.sessionKey }),
+      u.download({
+        url: bundle.url,
+        version: bundle.version,
+        checksum: bundle.checksum,
+        sessionKey: bundle.sessionKey,
+      }),
       120_000,
       "download",
     );
