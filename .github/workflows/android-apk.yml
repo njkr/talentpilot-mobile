@@ -96,7 +96,9 @@ jobs:
             echo "ANDROID_VERSION_CODE=$GITHUB_RUN_NUMBER"
             echo "ANDROID_VERSION_NAME=$PKG_VERSION"
             echo "VITE_APP_VERSION=$PKG_VERSION"
-            echo "VITE_BUNDLE_VERSION=$PKG_VERSION-$SHORT_SHA"
+            # <version>-<sha>.<run>: the run number keeps a REBUILD of the same commit (new API URL
+            # secret, re-run) distinct, otherwise the app sees the same version and never downloads it.
+            echo "VITE_BUNDLE_VERSION=$PKG_VERSION-$SHORT_SHA.$GITHUB_RUN_NUMBER"
           } >> "$GITHUB_ENV"
           echo "short=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
